@@ -1,0 +1,36 @@
+# Model-prep pipeline configuration — issue #10
+#
+# Each entry becomes a buildable artifact. A new finetuned model drops into
+# the browser by adding an entry here and running:
+#   python pipeline/export_model.py <name>
+#   python pipeline/quantize_model.py <name>
+#   python pipeline/validate_model.py <name>
+#   python pipeline/publish_model.py <name>
+
+artifacts:
+  espeak-phoneme:
+    task: automatic-speech-recognition   # wav2vec2-CTC phoneme model
+    framework: pt
+    source_model: onnx-community/wav2vec2-lv-60-espeak-cv-ft-ONNX
+    quantizations: [fp16, q8]
+    # browser config maps language -> model revision (see below)
+    revision: v1-espeak
+    languages: [en, da, ne, new]          # served as the multilingual baseline
+    validation:
+      metric: per                          # phoneme error rate
+      # gate: refuse to publish if PER regresses more than this vs baseline
+      max_regression: 0.005
+      dataset: null                        # path to a held-out utterance set (TBD M2)
+    publish:
+      target: local                        # 'local' (self-host under public/models) or 'hub'
+      hub_repo: null
+
+# Per-language finetunes land here as M2 proceeds (issues #11–#14), e.g.:
+#  en-phoneme:
+#    task: automatic-speech-recognition
+#    source_model: <finetuned wav2vec2-CTC base>
+#    quantizations: [q8, q4]
+#    revision: v1-en
+#    languages: [en]
+#    validation: { metric: per, max_regression: 0.01, dataset: data/en-heldout }
+#    publish: { target: hub, hub_repo: DevelApp-ai/en-phoneme-onnx }
