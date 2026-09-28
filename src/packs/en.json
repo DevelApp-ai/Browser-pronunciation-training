@@ -1,0 +1,110 @@
+{
+  "language": "en",
+  "ipaInventory": [
+    "p", "b", "t", "d", "k", "g", "tʃ", "dʒ",
+    "f", "v", "θ", "ð", "s", "z", "ʃ", "ʒ", "h",
+    "m", "n", "ŋ", "l", "r", "j", "w",
+    "iː", "ɪ", "e", "æ", "ɑː", "ɒ", "ɔː", "ʊ", "uː", "ʌ", "ɜː", "ə",
+    "eɪ", "aɪ", "ɔɪ", "aʊ", "əʊ", "ɪə", "eə", "ʊə"
+  ],
+  "g2p": {
+    "hello": ["h", "ə", "l", "əʊ"],
+    "the": ["ð", "ə"],
+    "this": ["ð", "ɪ", "s"],
+    "think": ["θ", "ɪ", "ŋ", "k"],
+    "three": ["θ", "r", "iː"],
+    "thank": ["θ", "æ", "ŋ", "k"],
+    "they": ["ð", "eɪ"],
+    "mother": ["m", "ʌ", "ð", "ə"],
+    "father": ["f", "ɑː", "ð", "ə"],
+    "brother": ["b", "r", "ʌ", "ð", "ə"],
+    "world": ["w", "ɜː", "l", "d"],
+    "word": ["w", "ɜː", "d"],
+    "work": ["w", "ɜː", "k"],
+    "very": ["v", "e", "r", "i"],
+    "water": ["w", "ɔː", "t", "ə"],
+    "would": ["w", "ʊ", "d"],
+    "she": ["ʃ", "iː"],
+    "sure": ["ʃ", "ɔː"],
+    "usually": ["j", "uː", "ʒ", "ə", "l", "i"],
+    "measure": ["m", "e", "ʒ", "ə"],
+    "vision": ["v", "ɪ", "ʒ", "ə", "n"],
+    "ship": ["ʃ", "ɪ", "p"],
+    "sheep": ["ʃ", "iː", "p"],
+    "sit": ["s", "ɪ", "t"],
+    "seat": ["s", "iː", "t"],
+    "cat": ["k", "æ", "t"],
+    "cut": ["k", "ʌ", "t"],
+    "bad": ["b", "æ", "d"],
+    "bed": ["b", "e", "d"],
+    "bird": ["b", "ɜː", "d"],
+    "heard": ["h", "ɜː", "d"],
+    "light": ["l", "aɪ", "t"],
+    "right": ["r", "aɪ", "t"],
+    "live": ["l", "ɪ", "v"],
+    "leave": ["l", "iː", "v"],
+    "full": ["f", "ʊ", "l"],
+    "fool": ["f", "uː", "l"],
+    "pronunciation": ["p", "r", "ə", "n", "ʌ", "n", "s", "i", "eɪ", "ʃ", "ə", "n"],
+    "practice": ["p", "r", "æ", "k", "t", "ɪ", "s"],
+    "sentence": ["s", "e", "n", "t", "ə", "n", "s"],
+    "good": ["ɡ", "ʊ", "d"],
+    "morning": ["m", "ɔː", "n", "ɪ", "ŋ"]
+  },
+  "learnerErrors": {
+    "θ": [
+      { "diagnosed": "s", "tip": "You said /s/. Put your tongue lightly between your teeth and blow — /θ/ has no hiss." },
+      { "diagnosed": "t", "tip": "You said /t/. Keep the tongue forward between the teeth instead of tapping the ridge." },
+      { "diagnosed": "f", "tip": "You said /f/. Use the tongue tip (not the lip) against the teeth for /θ/." }
+    ],
+    "ð": [
+      { "diagnosed": "d", "tip": "You said /d/. /ð/ is voiced with the tongue tip gently between the teeth — no plosion." },
+      { "diagnosed": "z", "tip": "You said /z/. Move the tongue forward to the teeth for voiced /ð/." }
+    ],
+    "w": [
+      { "diagnosed": "v", "tip": "You said /v/. Round both lips for /w/ — no teeth touching lip." }
+    ],
+    "v": [
+      { "diagnosed": "w", "tip": "You said /w/. Touch the top teeth to the bottom lip and buzz for /v/." }
+    ],
+    "r": [
+      { "diagnosed": "l", "tip": "You said /l/. Curl the tongue back without touching the roof for English /r/." }
+    ],
+    "l": [
+      { "diagnosed": "r", "tip": "You said /r/. Let the tongue tip touch the ridge for /l/." }
+    ],
+    "iː": [
+      { "diagnosed": "ɪ", "tip": "You said /ɪ/. Lengthen and tense your lips for /iː/ (sheep, not ship)." }
+    ],
+    "ɪ": [
+      { "diagnosed": "iː", "tip": "You said /iː/. Relax and shorten it — /ɪ/ (ship, not sheep)." }
+    ],
+    "æ": [
+      { "diagnosed": "e", "tip": "You said /e/. Open the jaw wider for /æ/ (bad, not bed)." },
+      { "diagnosed": "ɑː", "tip": "You said /ɑː/. Lift the tongue and flatten it a little for /æ/." }
+    ],
+    "ʃ": [
+      { "diagnosed": "s", "tip": "You said /s/. Pull the tongue back slightly and round the lips for /ʃ/." }
+    ],
+    "ʒ": [
+      { "diagnosed": "dʒ", "tip": "You said /dʒ/. Remove the plosion — /ʒ/ is a continuous buzz." }
+    ],
+    "ŋ": [
+      { "diagnosed": "n", "tip": "You said /n/. Raise the back of the tongue against the soft palate for /ŋ/." }
+    ],
+    "h": [
+      { "diagnosed": "x", "tip": "You made a harsh scrape. English /h/ is a soft breath." }
+    ],
+    "eɪ": [
+      { "diagnosed": "e", "tip": "You dropped the glide. Finish the diphthong with an /ɪ/ movement." }
+    ],
+    "əʊ": [
+      { "diagnosed": "oː", "tip": "You said a pure vowel. Round into a /ʊ/ off-glide for /əʊ/." }
+    ]
+  },
+  "prosodyRules": {
+    "rhythmType": "stress-timed",
+    "stressMarker": "ˈ",
+    "notes": "GenAm/RP divergences handled via variant-aware pack entries (issue #11)."
+  }
+}
