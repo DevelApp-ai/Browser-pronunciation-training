@@ -5,7 +5,36 @@ posteriors from a browser-ready CTC model (transformers.js), score with an
 alignment-free GOP, and give per-phoneme feedback — no server round-trips.
 
 Reference design: [docs/TDS.md](docs/TDS.md). Milestones are tracked as
-GitHub issues (M1 epic: #1).
+GitHub issues (M1 epic: #1, complete; M2: #2; M3: #3).
+
+## Live demo (GitHub Pages)
+
+> Requires the repo setting **Settings → Pages → Build and deployment →
+> Source: GitHub Actions**. The deploy workflow
+> (`.github/workflows/deploy-pages.yml`) then publishes every push to `main`.
+
+Once enabled: **https://develapp-ai.github.io/Browser-pronunciation-training/**
+
+URL parameters:
+
+- *(none)* — the trainer app (record → per-phoneme feedback)
+- `?lang=da` / `?lang=ne` — UI + phoneme-pack language
+- `?benchmark=1` — WebGPU vs WASM latency harness; prints a markdown table
+  for [docs/backend-benchmarks.md](docs/backend-benchmarks.md)
+- `?selftest=1` — browser self-test page (see below)
+
+## Browser self-test & log upload
+
+To test the app in a specific browser (e.g. Edge and Firefox):
+
+1. Open `https://develapp-ai.github.io/Browser-pronunciation-training/?selftest=1`
+   in the browser (over HTTPS — getUserMedia and the Hub download need it).
+2. Click **Run self-test (environment + model)** — checks getUserMedia,
+   module workers, 16 kHz AudioContext, MediaRecorder, WebGPU,
+   speechSynthesis, then loads the model and runs one synthetic utterance.
+3. Click **Run microphone test** (grants mic permission; records 1.5 s).
+4. Click **Download log (JSON)** and/or **Download log (TXT)** and upload the
+   file(s) from the chat for analysis. One log per browser please.
 
 ## Structure
 
@@ -15,7 +44,8 @@ GitHub issues (M1 epic: #1).
 - `src/packs/` — phoneme-pack JSON schema + English pack (issue #8)
 - `src/benchmark/` — WebGPU vs WASM latency harness (issue #7)
 - `src/ui/` — phoneme-ribbon feedback UI, i18n strings (issue #9)
-- `test/` — synthetic-posterior scorer suite + PCM/pack unit tests
+- `src/selftest/` — in-browser self-test with downloadable log (Pages rollout)
+- `test/` — synthetic-posterior scorer suite + PCM/pack/harness/selftest unit tests
 
 ## Development
 
