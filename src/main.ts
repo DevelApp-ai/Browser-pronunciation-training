@@ -37,10 +37,18 @@ import {
   type TestEntry,
 } from "./selftest/selftest.ts";
 
+/**
+ * Exercise sets per language. English sentences only use words in the en
+ * pack's G2P map, so every word yields target phonemes (unknown words are
+ * skipped). da/ne sets land their phonemes once those packs are filled in
+ * (issue #8) — until then graphemesToPhonemes returns [] and the sentences
+ * are still shown/speakable, just not scored.
+ */
 const EXERCISES: Record<string, string[]> = {
-  en: ["Hello world", "I think three things", "They usually measure it", "The pronunciation practice"],
+  en: ["Hello world","I think three things","They usually measure it","The pronunciation practice","Thank the mother this morning","This brother thinks the world works","Three very good sheep","She would leave the light on","Ship or sheep","Sit in the seat","The bird heard the word","The father would work with the brother"],
+  da: ["Hej verden","Jeg tænker på tre ting","Rødgrød med fløde","Tak for den gode morgen","Fuglen flyver ud i verden","Skibet sejler mod havet","Katten og hunden leger i haven","Vejen til byen er lang"],
+  ne: ["नमस्ते संसार","म तीनवटा कुरा सोच्छु","उनीहरू सामान्य रूपमा नाप्छन्","उच्चारण अभ्यास","यो बिहान आमालाई धन्यवाद","यो भाइले संसारका बारेमा सोच्छ","तीन धेरै राम्रा भेडा","बिरालो र कुकुर बगैंचामा खेल्छन्"],
 };
-
 function renderSelfTestPage(): void {
   const app = document.querySelector<HTMLElement>("#app")!;
   const entries: TestEntry[] = [];
