@@ -43,21 +43,17 @@ def test_mispronounced_from_row():
 def test_analyze_correlations(tmp_path):
     csv_text = (
         "timestamp,language,exercise,overall,segmental,intonation,stress,fluency,"
-        "phonemeMean,mispronounced,latencyMs,phonemes,rater_segmental,rater_prosody,rater_overall
-"
-        "t1,en,three,72,72,55,80,60,0.65,2,950,θ:0.90 r:0.40,70,50,71
-"
-        "t2,en,three,90,90,60,85,70,0.88,0,800,θ:0.91 r:0.85,88,65,92
-"
-        "t3,en,three,50,50,40,70,55,0.35,3,1100,θ:0.51 r:0.20,45,40,48
-"
+        "phonemeMean,mispronounced,latencyMs,phonemes,rater_segmental,rater_prosody,rater_overall\n"
+        "t1,en,three,72,72,55,80,60,0.65,2,950,θ:0.90 r:0.40,70,50,71\n"
+        "t2,en,three,90,90,60,85,70,0.88,0,800,θ:0.91 r:0.85,88,65,92\n"
+        "t3,en,three,50,50,40,70,55,0.35,3,1100,θ:0.51 r:0.20,45,40,48\n"
     )
     p = tmp_path / "eval.csv"
     p.write_text(csv_text, encoding="utf-8")
     rows = read_rows(p)
     out = analyze(rows)
     assert out["n_rated"] == 3
-    assert out["overall"]["pearson"] == pytest.approx(1.0, abs=0.01)  # near-perfect mock ratings
+    assert out["overall"]["pearson"] == pytest.approx(1.0, abs=1e-2)  # near-perfect mock ratings
     assert out["segmental"]["n"] == 3
 
 
