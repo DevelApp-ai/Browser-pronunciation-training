@@ -36,6 +36,21 @@ To test the app in a specific browser (e.g. Edge and Firefox):
 4. Click **Download log (JSON)** and/or **Download log (TXT)** and upload the
    file(s) from the chat for analysis. One log per browser please.
 
+## Learner progress (spaced repetition)
+
+The app remembers each learner's phoneme difficulty and drills the sounds
+they find hard, Anki-style — entirely on-device (no account, no server):
+
+- Every (language, phoneme) pair is an SM-2 flashcard; the GOP score of each
+  attempt is the "answer quality". Failed phonemes come back within hours,
+  mastered ones grow intervals exponentially.
+- Cards persist in IndexedDB (`bpt-progress` DB), with a localStorage
+  fallback where IndexedDB is unavailable (e.g. private-mode Safari).
+- On return, the app picks the exercise with the most due/weak phonemes; a
+  **Next** button re-picks, and a status line shows what's due and the
+  weakest sounds.
+- `?lang=` isolates progress per language.
+
 ## Structure
 
 - `src/audio/` — getUserMedia → 16 kHz Float32 PCM capture, VAD trim, chunking (issue #4)
@@ -43,9 +58,10 @@ To test the app in a specific browser (e.g. Edge and Firefox):
 - `src/scoring/` — alignment-free, substitution-aware GOP scorer (issue #6)
 - `src/packs/` — phoneme-pack JSON schema + English pack (issue #8)
 - `src/benchmark/` — WebGPU vs WASM latency harness (issue #7)
+- `src/progress/` — SM-2 spaced repetition + IndexedDB/localStorage persistence
 - `src/ui/` — phoneme-ribbon feedback UI, i18n strings (issue #9)
 - `src/selftest/` — in-browser self-test with downloadable log (Pages rollout)
-- `test/` — synthetic-posterior scorer suite + PCM/pack/harness/selftest unit tests
+- `test/` — synthetic-posterior scorer suite + PCM/pack/harness/selftest/SRS unit tests
 
 ## Development
 
