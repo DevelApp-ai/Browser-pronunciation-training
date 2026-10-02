@@ -70,7 +70,7 @@ function csvCell(v: string | number | undefined): string {
 export function toEvalCsv(records: EvalRecord[]): string {
   const rows = [CSV_COLUMNS.join(",")];
   for (const r of records) {
-    rows.push(CSV_COLUMNS.map((c) => csvCell((r as Record<string, string | number | undefined>)[c])).join(","));
+    rows.push(CSV_COLUMNS.map((c) => csvCell((r as unknown as Record<string, string | number | undefined>)[c])).join(","));
   }
   return rows.join("\n");
 }
