@@ -42,7 +42,8 @@ The app remembers each learner's phoneme difficulty and drills the sounds
 they find hard, Anki-style — entirely on-device (no account, no server):
 
 - Every (language, phoneme) pair is an SM-2 flashcard; the GOP score of each
-  attempt is the "answer quality". Failed phonemes come back within hours,
+  attempt is the "answer
+ quality". Failed phonemes come back within hours,
   mastered ones grow intervals exponentially.
 - Cards persist in IndexedDB (`bpt-progress` DB), with a localStorage
   fallback where IndexedDB is unavailable (e.g. private-mode Safari).
@@ -70,3 +71,5 @@ npm install
 npm test     # vitest
 npm run dev  # vite dev server
 ```
+
+<!-- ci-smoke-test -->
