@@ -1,6 +1,7 @@
 /**
  * App entry — wires capture (#4) → model logits (#5) → GOP scorer (#6)
- * → phoneme-pack tips (#8) → feedback UI (#9).
+ * → phoneme-pack tips (#8) → feedback UI (#9) → prosody merge (#16)
+ * → eval collection (#19).
  *
  * Query params:
  *   lang=en|da|ne — UI + phoneme-pack language
@@ -8,12 +9,16 @@
  *                   markdown table for docs/backend-benchmarks.md
  *   selftest=1    — run in-browser self-tests (environment, model,
  *                   microphone) and download a test log for upload
+ *   eval=1        — show the evaluation-data controls (CSV download for
+ *                   human-rater correlation, issue #19)
  */
-import { startCapture } from "./audio/capture.ts";
+import { listInputDevices, startCapture } from "./audio/capture.ts";
 import { benchmarkModel, DEFAULT_BACKENDS, statsToMarkdown, syntheticUtterances } from "./benchmark/harness.ts";
+import { downloadEvalCsv, toEvalRecord, toEvalCsv, type EvalRecord } from "./eval/collect.ts";
 import { loadPhonemeModel } from "./model/runtime.ts";
 import { loadPack } from "./packs/loader.ts";
 import { graphemesToPhonemes } from "./packs/schema.ts";
+import { withProsody } from "./prosody/merge.ts";
 import { scoreUtterance } from "./scoring/gop.ts";
 import { drawWaveform, playBlob, renderPhonemeRibbon, renderScoreCard, speakReference } from "./ui/feedback.ts";
 import { t, type Lang } from "./ui/i18n.ts";
@@ -121,6 +126,7 @@ async function main() {
 
   const lang = (params.get("lang") ?? "en") as Lang;
   const s = t(lang);
+  const evalMode = params.has("eval");
   const pack = await loadPack(lang);
   const model = loadPhonemeModel();
 
@@ -145,6 +151,7 @@ async function main() {
       <button id="slowBtn">${s.slow}</button>
       <button id="recBtn">${s.record}</button>
       <button id="playBtn" disabled>${s.play}</button>
+      ${evalMode ? '<button id="evalBtn" disabled>Download eval CSV</button>' : ""}
     </div>
     <canvas id="wave" width="600" height="120"></canvas>
     <div id="scoreCard"><p>${s.scoreNone}</p></div>
@@ -157,10 +164,18 @@ async function main() {
 
   const recBtn = app.querySelector<HTMLButtonElement>("#recBtn")!;
   const playBtn = app.querySelector<HTMLButtonElement>("#playBtn")!;
+  const evalBtn = evalMode ? app.querySelector<HTMLButtonElement>("#evalBtn")! : null;
   const canvas = app.querySelector<HTMLCanvasElement>("#wave")!;
   let capture: ReturnType<typeof startCapture> | null = null;
   let stopWave: (() => void) | null = null;
   let lastBlob: Blob | null = null;
+
+  // Evaluation session (issue #19): every scored attempt is recorded for
+  // human-rater correlation and per-language threshold tuning.
+  const evalRecords: EvalRecord[] = [];
+  evalBtn?.addEventListener("click", () => {
+    downloadEvalCsv(evalRecords, `bpt-eval-${lang}-${Date.now()}.csv`);
+  });
 
   // Playback of the learner's own attempt (issue #9).
   playBtn.addEventListener("click", () => {
@@ -182,7 +197,15 @@ async function main() {
         // Backend pinned per model by the benchmark harness (issue #7).
         const logits = await model.logitFrames(pcm, DEFAULT_BACKENDS["espeak-phoneme"] ?? "wasm");
         const target = graphemesToPhonemes(pack, sentence);
-        const result = scoreUtterance(logits, target, pack);
+        let result = scoreUtterance(logits, target, pack);
+        // Prosody dimensions (issue #16) — pure DSP on the captured PCM,
+        // intonation scores against a flat template until #17 provides a
+        // reference contour.
+        result = withProsody(result, pcm);
+        if (evalMode) {
+          evalRecords.push(toEvalRecord(result, lang, sentence, logits.latencyMs));
+          if (evalBtn) evalBtn.disabled = evalRecords.length === 0;
+        }
         renderScoreCard(app.querySelector("#scoreCard")!, result, lang);
         renderPhonemeRibbon(app.querySelector("#ribbon")!, result, lang);
       } catch (err) {
@@ -205,6 +228,9 @@ async function main() {
       app.querySelector<HTMLElement>("#scoreCard")!.innerHTML = `<p>${msg}</p>`;
     }
   });
+
+  // Warm the device list so labels are available for the device picker.
+  void listInputDevices().catch(() => {});
 }
 
 void main();
