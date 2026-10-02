@@ -1,7 +1,7 @@
 /**
  * App entry — wires capture (#4) → model logits (#5) → GOP scorer (#6)
  * → phoneme-pack tips (#8) → feedback UI (#9) → prosody merge (#16)
- * → eval collection (#19).
+ * → eval collection (#19) → learner progress / spaced repetition.
  *
  * Query params:
  *   lang=en|da|ne — UI + phoneme-pack language
@@ -18,6 +18,8 @@ import { downloadEvalCsv, toEvalRecord, toEvalCsv, type EvalRecord } from "./eva
 import { loadPhonemeModel } from "./model/runtime.ts";
 import { loadPack } from "./packs/loader.ts";
 import { graphemesToPhonemes } from "./packs/schema.ts";
+import { loadSummary, pickExercise, recordAttempt } from "./progress/session.ts";
+import { openProgressStore } from "./progress/store.ts";
 import { withProsody } from "./prosody/merge.ts";
 import { scoreUtterance } from "./scoring/gop.ts";
 import { drawWaveform, playBlob, renderPhonemeRibbon, renderScoreCard } from "./ui/feedback.ts";
@@ -46,8 +48,7 @@ function renderSelfTestPage(): void {
 
   app.innerHTML = [
     "<h1>Self-test</h1>",
-    "<p id='stIntro'>Run the checks in this browser, then download the log (J
-SON and/or text) and upload it.</p>",
+    "<p id='stIntro'>Run the checks in this browser, then download the log (JSON and/or text) and upload it.</p>",
     "<div id='controls'>",
     "  <button id='stRun'>Run self-test (environment + model)</button>",
     "  <button id='stMic'>Run microphone test</button>",
@@ -96,8 +97,7 @@ SON and/or text) and upload it.</p>",
     const btn = ev.currentTarget as HTMLButtonElement;
     btn.disabled = true;
     btn.textContent = "Recording 1.5 s…";
-    try
- {
+    try {
       record(await runMicrophoneCheck(() => startCapture()));
     } finally {
       btn.disabled = false;
@@ -146,23 +146,47 @@ async function main() {
     return;
   }
 
-  const sentence = EXERCISES[lang]?.[0] ?? "Hello world";
+  // Learner progress (spaced repetition): open the on-device store, load the
+  // learner's phoneme cards, and pick the exercise with the highest SRS
+  // priority — so returning learners resume on their weakest sounds.
+  const progress = await openProgressStore();
+  const exercises = EXERCISES[lang] ?? ["Hello world"];
+  const phonemesOf = (ex: string) => graphemesToPhonemes(pack, ex);
+  const cards = new Map((await progress.getAllCards(lang)).map((c) => [c.phoneme, c]));
+  let sentence = pickExercise(exercises, phonemesOf, cards);
+  const progressPanel = () => app.querySelector<HTMLElement>("#progress")!;
+
+  function renderProgress(dueCount: number, totalCards: number, weakest: { phoneme: string; meanScore: number }[]): void {
+    const dueTxt = dueCount > 0 ? `${dueCount} ${s.dueNow}` : s.allCaughtUp;
+    const weakTxt =
+      weakest.length > 0
+        ? ` · ${s.weakest}: ${weakest.map((c) => `${c.phoneme} (${Math.round(c.meanScore * 100)}%)`).join(", ")}`
+        : "";
+    progressPanel().textContent = totalCards > 0 ? `${dueTxt}${weakTxt}` : "";
+  }
+
   app.innerHTML = `
     <h1>${sentence}</h1>
     <div id="controls">
       <button id="refBtn">${s.playReference}</button>
       <button id="slowBtn">${s.slow}</button>
       <button id="loopBtn">${s.loop}</button>
+      <button id="nextBtn">${s.next}</button>
       <button id="recBtn">${s.record}</button>
-      <button id="playBtn" disabled>${s.pl
-ay}</button>
+      <button id="playBtn" disabled>${s.play}</button>
       ${evalMode ? '<button id="evalBtn" disabled>Download eval CSV</button>' : ""}
     </div>
+    <div id="progress" class="progress"></div>
     <canvas id="wave" width="600" height="120"></canvas>
     <p id="refStatus" role="status"></p>
     <div id="scoreCard"><p>${s.scoreNone}</p></div>
     <div id="ribbon"></div>
   `;
+
+  {
+    const summary = await loadSummary(progress, lang);
+    renderProgress(summary.dueCount, summary.totalCards, summary.weakest);
+  }
 
   const refLang = lang === "en" ? "en-US" : lang;
   const refStatus = app.querySelector<HTMLElement>("#refStatus")!;
@@ -185,6 +209,16 @@ ay}</button>
   loopBtn.addEventListener("click", () => {
     loopBtn.dataset.on = loopBtn.dataset.on === "1" ? "0" : "1";
     loopBtn.style.fontWeight = loopBtn.dataset.on === "1" ? "bold" : "normal";
+  });
+
+  // Next exercise: re-pick by SRS priority (skip the current sentence).
+  app.querySelector<HTMLButtonElement>("#nextBtn")!.addEventListener("click", () => {
+    const pool = exercises.filter((ex) => ex !== sentence);
+    if (pool.length === 0) return;
+    sentence = pickExercise(pool, phonemesOf, cards);
+    app.querySelector<HTMLElement>("h1")!.textContent = sentence;
+    app.querySelector<HTMLElement>("#ribbon")!.innerHTML = "";
+    app.querySelector<HTMLElement>("#scoreCard")!.innerHTML = `<p>${s.scoreNone}</p>`;
   });
 
   // Reference intonation template from the bundled clip, when one exists (#16+#17).
@@ -223,8 +257,7 @@ ay}</button>
       capture = null;
       try {
         // Backend pinned per model by the benchmark harness (issue #7).
-        const logits = await model.logitFrames(pcm, DEFAULT_BACKENDS["espeak-phoneme"] ?
-? "wasm");
+        const logits = await model.logitFrames(pcm, DEFAULT_BACKENDS["espeak-phoneme"] ?? "wasm");
         const target = graphemesToPhonemes(pack, sentence);
         let result = scoreUtterance(logits, target, pack);
         // Prosody dimensions (issue #16) — pure DSP on the captured PCM,
@@ -237,6 +270,13 @@ ay}</button>
         }
         renderScoreCard(app.querySelector("#scoreCard")!, result, lang);
         renderPhonemeRibbon(app.querySelector("#ribbon")!, result, lang);
+        // Spaced repetition: review each target phoneme's card and refresh
+        // the due/weak summary (all on-device).
+        for (const updated of await recordAttempt(progress, lang, result.phonemes)) {
+          cards.set(updated.phoneme, updated);
+        }
+        const after = await loadSummary(progress, lang);
+        renderProgress(after.dueCount, after.totalCards, after.weakest);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         app.querySelector<HTMLElement>("#scoreCard")!.innerHTML = `<p>${msg}</p>`;
@@ -260,6 +300,9 @@ ay}</button>
 
   // Warm the device list so labels are available for the device picker.
   void listInputDevices().catch(() => {});
+
+  // Count the visit so the app can tell returning learners from new ones.
+  void progress.recordSession(0).catch(() => {});
 }
 
 void main();
