@@ -55,6 +55,11 @@ export function exerciseSlug(exercise: string): string {
     .toLowerCase()
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "")
+    // letters NFKD cannot decompose — transliterate so slugs stay pure ASCII
+    .replace(/æ/g, "ae")
+    .replace(/ø/g, "oe")
+    .replace(/œ/g, "oe")
+    .replace(/ß/g, "ss")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
 }
