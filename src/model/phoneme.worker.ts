@@ -20,6 +20,9 @@ import { pipeline, env } from "@huggingface/transformers";
 // Model files: prefer self-hosted /public/models when present (issue #18),
 // fall back to the Hub on first load.
 env.allowLocalModels = true;
+// Issue #28: transformers.js defaults localModelPath to "/models/", which is
+// wrong under the GitHub Pages base path. Vite injects BASE_URL at build time.
+env.localModelPath = import.meta.env.BASE_URL + "models/";
 const onnxWasm = (env.backends as { onnx?: { wasm?: { proxy?: boolean } } }).onnx?.wasm;
 if (onnxWasm) onnxWasm.proxy = false;
 

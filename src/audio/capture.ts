@@ -140,7 +140,10 @@ export function startCapture(options: CaptureOptions = {}): CaptureHandle {
 
     // PCM tap. ScriptProcessorNode is deprecated but universally supported;
     // an AudioWorklet migration is tracked separately.
-    const bufferSize = Math.floor(ctx.sampleRate * 0.1);
+    // Issue #28: createScriptProcessor only accepts 0 or a power of two
+    // between 256 and 16384 — 1600 @16 kHz threw IndexSizeError in
+    // Edge and Firefox. 2048 ≈ 128 ms of audio @16 kHz.
+    const bufferSize = 2048;
     processor = ctx.createScriptProcessor(bufferSize, 1, 1);
     processor.onaudioprocess = (e) => {
       collected.push(new Float32Array(e.inputBuffer.getChannelData(0)));
