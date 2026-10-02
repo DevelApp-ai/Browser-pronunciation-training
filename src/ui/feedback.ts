@@ -5,7 +5,6 @@
  * - Click a chip → "you said X / target Y" + the pack tip
  * - Live waveform while recording (AnalyserNode), playback of own attempt
  * - Score summary card (overall 0–100 + dimension sub-scores)
- * - Reference-audio playback with 0.7× slow-down
  */
 import type { ScoreResult } from "../scoring/types.ts";
 import { t, type Lang } from "./i18n.ts";
@@ -49,7 +48,8 @@ function showDiagnosis(container: HTMLElement, p: ScoreResult["phonemes"][number
 }
 
 /** Score summary card: overall 0–100 + dimension sub-scores. */
-export function renderScoreCard(container: HTMLElement, result: ScoreResult, lang: Lang = "en"): void {
+export function renderScoreCard(container: HTMLElement, result: ScoreResult, lang: Lang = "en")
+: void {
   const s = t(lang);
   container.replaceChildren();
   const overall = document.createElement("div");
@@ -102,22 +102,4 @@ export async function playBlob(blob: Blob, rate = 1.0): Promise<void> {
   src.connect(ctx.destination);
   src.start();
   src.onended = () => void ctx.close();
-}
-
-/**
- * Reference audio via SpeechSynthesis with BCP-47 filtering — full coverage
- * (localService preference, async voice-list quirks, human-clip fallback for
- * Newari) is issue #17.
- */
-export function speakReference(text: string, bcp47: string, rate = 1.0): boolean {
-  if (typeof speechSynthesis === "undefined") return false;
-  const voices = speechSynthesis.getVoices();
-  const matches = voices.filter((v) => v.lang.toLowerCase().startsWith(bcp47.toLowerCase()));
-  if (matches.length === 0 && voices.length > 0) return false;
-  const voice = matches.find((v) => v.localService) ?? matches[0];
-  const utter = new SpeechSynthesisUtterance(text);
-  if (voice) utter.voice = voice;
-  utter.rate = rate;
-  speechSynthesis.speak(utter);
-  return true;
 }
