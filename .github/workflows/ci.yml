@@ -13,7 +13,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
+      - run: npm install --no-audit --no-fund
       - run: npm test
       - run: npm run build
       # pipeline + eval analysis are pure Python — run their tests too (#10, #19)
