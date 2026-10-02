@@ -6,8 +6,10 @@
  *   lang=en|da|ne — UI + phoneme-pack language
  *   benchmark=1   — run the WebGPU-vs-WASM harness (#7) and print the
  *                   markdown table for docs/backend-benchmarks.md
+ *   selftest=1    — run in-browser self-tests (environment, model,
+ *                   microphone) and download a test log for upload
  */
-import { listInputDevices, startCapture } from "./audio/capture.ts";
+import { startCapture } from "./audio/capture.ts";
 import { benchmarkModel, DEFAULT_BACKENDS, statsToMarkdown, syntheticUtterances } from "./benchmark/harness.ts";
 import { loadPhonemeModel } from "./model/runtime.ts";
 import { loadPack } from "./packs/loader.ts";
@@ -15,23 +17,117 @@ import { graphemesToPhonemes } from "./packs/schema.ts";
 import { scoreUtterance } from "./scoring/gop.ts";
 import { drawWaveform, playBlob, renderPhonemeRibbon, renderScoreCard, speakReference } from "./ui/feedback.ts";
 import { t, type Lang } from "./ui/i18n.ts";
+import {
+  buildLog,
+  detectBrowser,
+  downloadLog,
+  logToText,
+  runEnvironmentChecks,
+  runMicrophoneCheck,
+  runModelChecks,
+  type SelfTestLog,
+  type TestEntry,
+} from "./selftest/selftest.ts";
 
 const EXERCISES: Record<string, string[]> = {
   en: ["Hello world", "I think three things", "They usually measure it", "The pronunciation practice"],
 };
 
+function renderSelfTestPage(): void {
+  const app = document.querySelector<HTMLElement>("#app")!;
+  const entries: TestEntry[] = [];
+  let log: SelfTestLog = buildLog(entries);
+
+  app.innerHTML = [
+    "<h1>Self-test</h1>",
+    "<p id='stIntro'>Run the checks in this browser, then download the log (JSON and/or text) and upload it.</p>",
+    "<div id='controls'>",
+    "  <button id='stRun'>Run self-test (environment + model)</button>",
+    "  <button id='stMic'>Run microphone test</button>",
+    "  <button id='stJson' disabled>Download log (JSON)</button>",
+    "  <button id='stTxt' disabled>Download log (TXT)</button>",
+    "  <button id='stCopy' disabled>Copy text summary</button>",
+    "</div>",
+    "<ul id='stResults'></ul>",
+  ].join("");
+
+  const results = app.querySelector<HTMLElement>("#stResults")!;
+  const jsonBtn = app.querySelector<HTMLButtonElement>("#stJson")!;
+  const txtBtn = app.querySelector<HTMLButtonElement>("#stTxt")!;
+  const copyBtn = app.querySelector<HTMLButtonElement>("#stCopy")!;
+
+  function record(list: TestEntry[]): void {
+    for (const e of list) {
+      entries.push(e);
+      const li = document.createElement("li");
+      const mark = { pass: "✅", fail: "❌", warn: "⚠️", skip: "⏭️" }[e.status];
+      li.textContent = `${mark} ${e.name} — ${e.detail}`;
+      results.appendChild(li);
+    }
+    log = buildLog(entries);
+    for (const b of [jsonBtn, txtBtn, copyBtn]) b.disabled = entries.length === 0;
+  }
+
+  app.querySelector<HTMLButtonElement>("#stRun")!.addEventListener("click", async (ev) => {
+    const btn = ev.currentTarget as HTMLButtonElement;
+    btn.disabled = true;
+    btn.textContent = "Running… (first run downloads the model)";
+    try {
+      record(await runEnvironmentChecks());
+      const model = loadPhonemeModel();
+      record(await runModelChecks(model, "wasm"));
+      model.terminate();
+    } catch (err) {
+      record([{ name: "self-test", status: "fail", detail: String(err) }]);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Run self-test (environment + model)";
+    }
+  });
+
+  app.querySelector<HTMLButtonElement>("#stMic")!.addEventListener("click", async (ev) => {
+    const btn = ev.currentTarget as HTMLButtonElement;
+    btn.disabled = true;
+    btn.textContent = "Recording 1.5 s…";
+    try {
+      record(await runMicrophoneCheck(() => startCapture()));
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Run microphone test";
+    }
+  });
+
+  jsonBtn.addEventListener("click", () => downloadLog(log, "json"));
+  txtBtn.addEventListener("click", () => downloadLog(log, "text"));
+  copyBtn.addEventListener("click", async () => {
+    await navigator.clipboard.writeText(logToText(log));
+    copyBtn.textContent = "Copied!";
+    setTimeout(() => (copyBtn.textContent = "Copy text summary"), 1500);
+  });
+
+  const b = detectBrowser(navigator.userAgent);
+  app.querySelector<HTMLElement>("#stIntro")!.textContent +=
+    ` Detected: ${b.name} ${b.version}.`;
+}
+
 async function main() {
   const params = new URLSearchParams(location.search);
+  const app = document.querySelector<HTMLElement>("#app")!;
+
+  if (params.has("selftest")) {
+    renderSelfTestPage();
+    return;
+  }
+
   const lang = (params.get("lang") ?? "en") as Lang;
   const s = t(lang);
   const pack = await loadPack(lang);
   const model = loadPhonemeModel();
-  const app = document.querySelector<HTMLElement>("#app")!;
 
   // Benchmark mode (issue #7): run the harness on fixed synthetic utterances
   // and print the table to paste into docs/backend-benchmarks.md.
   if (params.has("benchmark")) {
-    app.innerHTML = '<h1>Backend benchmark</h1><pre id="benchOut">running…</pre>';
+    app.innerHTML = "<h1>Backend benchmark</h1><pre id='benchOut'>running…</pre>";
     const stats = await benchmarkModel(model, syntheticUtterances(), {
       backends: ["wasm", "webgpu"],
       modelName: "espeak-phoneme",
@@ -109,9 +205,6 @@ async function main() {
       app.querySelector<HTMLElement>("#scoreCard")!.innerHTML = `<p>${msg}</p>`;
     }
   });
-
-  // Warm the device list so labels are available for the device picker.
-  void listInputDevices().catch(() => {});
 }
 
 void main();
