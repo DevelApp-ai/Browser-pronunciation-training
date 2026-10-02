@@ -187,7 +187,7 @@ export async function referenceF0(lang: string, exercise: string, baseUrl = "/re
       mono = new Float32Array(buf.length);
       for (let c = 0; c < buf.numberOfChannels; c++) {
         const ch = buf.getChannelData(c);
-        for (let i = 0; i < buf.length; i++) mono[i] += ch[i]! / buf.numberOfChannels;
+        for (let i = 0; i < buf.length; i++) mono[i] = (mono[i] ?? 0) + ch[i]! / buf.numberOfChannels;
       }
     }
     // F0 tracking is written for 16 kHz; decimate linearly if needed
