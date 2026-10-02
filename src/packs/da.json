@@ -984,7 +984,7 @@
     "ʁ": [
       {
         "diagnosed": "r",
-        "tip": "Din /r/ er for tung i fronten. Dansk r er dræbergrin/ryg-lyd — bagest i svælget."
+        "tip": "Din /r/ er for tung i fronten. Dansk r er en ryg-lyd — bagest i svælget."
       },
       {
         "diagnosed": "w",
@@ -1007,34 +1007,16 @@
         "tip": "Du sagde /e/. Åbn kæben bredere for /æ/ (æbler, hver)."
       }
     ],
-    "œ": [
-      {
-        "diagnosed": "œ",
-        "tip": "Kort /œ/ som i rødgrød — stram og kort."
-      }
-    ],
     "ɑ": [
       {
         "diagnosed": "a",
         "tip": "Du sagde /a/. Dansk /ɑ/ er mørkere og længere bagest (dag, lang)."
-      }
-    ],
-    "sɡ": [
-      {
-        "diagnosed": "sk",
-        "tip": "Husk: sk- foran hård vokal udtales /sg/ (skole, skibet)."
-      }
-    ],
-    "sb": [
-      {
-        "diagnosed": "sp",
-        "tip": "Husk: sp- udtales /sb/ (spiller, spiser)."
       }
     ]
   },
   "prosodyRules": {
     "rhythmType": "stress-timed",
     "stressMarker": "ˈ",
-    "notes": "Stød (glottal klap) er fonemisk men ikke markeret i v1-pakken; blødt d = /ð/, r = uvular /ʁ/. Issue #8 (v1: 150 ordbøger, bred transskription)."
+    "notes": "Stød (glottal klap) er fonemisk men ikke markeret i v1-pakken; blødt d = /ð/, r = uvular /ʁ/. sp-/sk- foran vokal udtales /sb/, /sɡ/. Issue #8 (v1: 150 ordbøger, bred transskription)."
   }
 }
