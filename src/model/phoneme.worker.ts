@@ -2,8 +2,18 @@
  * Phoneme-model Web Worker — issue #5.
  *
  * Loads `onnx-community/wav2vec2-lv-60-espeak-cv-ft-ONNX` via transformers.js
- * and returns the RAW per-frame logits (espeak IPA set) for GOP scoring, so the
- * UI thread stays responsive. A dedicated Worker makes `wasm.proxy` redundant.
+ * and returns the RAW per-frame logits (espeak IPA set + CTC blank) for GOP
+ * scoring, so the UI thread stays responsive. A dedicated Worker makes
+ * `wasm.proxy` redundant (tested off — see env.backends.onnx.wasm.proxy).
+ *
+ * Fixes over the first draft:
+ * - responses echo `seq` so the main-thread promise map can resolve the
+ *   right request (previously the promise never resolved at all);
+ * - pipeline type is `automatic-speech-recognition` with `output_logits: true`
+ *   (this is a CTC ASR model — `audio-classification` has no logits path);
+ * - the pipeline is cached PER DEVICE, so a WebGPU benchmark run (#7) cannot
+ *   silently reuse an instance loaded for WASM;
+ * - the greedy transcript is returned for the English sanity check.
  */
 import { pipeline, env } from "@huggingface/transformers";
 
@@ -14,23 +24,56 @@ env.backends.onnx.wasm.proxy = false;
 
 const MODEL_ID = "onnx-community/wav2vec2-lv-60-espeak-cv-ft-ONNX";
 
-let phonemePipeline: Awaited<ReturnType<typeof pipeline>> | null = null;
-let phonemeSet: string[] | null = null;
+type Device = "wasm" | "webgpu";
 
-async function ensureModel(device: "wasm" | "webgpu") {
-  if (!phonemePipeline) {
-    phonemePipeline = await pipeline("audio-classification", MODEL_ID, {
-      dtype: "q8",
-      device,
+/** One pipeline instance per device — a WASM warm-up must not pin WebGPU out. */
+const pipelines = new Map<Device, Promise<Awaited<ReturnType<typeof pipeline>>>>();
+
+function ensureModel(device: Device): Promise<Awaited<ReturnType<typeof pipeline>>> {
+  let p = pipelines.get(device);
+  if (!p) {
+    p = pipeline("automatic-speech-recognition", MODEL_ID, { dtype: "q8", device });
+    // Do not cache a rejected promise.
+    p = p.catch((err) => {
+      pipelines.delete(device);
+      throw err;
     });
+    pipelines.set(device, p);
   }
-  return phonemePipeline;
+  return p;
+}
+
+/** Vocabulary order for the logit rows (espeak IPA set + CTC blank). */
+function vocabFromPipeline(pipe: unknown, vocabSize: number): string[] | null {
+  const anyPipe = pipe as {
+    model?: { config?: { id2label?: Record<string, string> } };
+    tokenizer?: { get_vocab?: () => Record<string, number> };
+  };
+  const id2label = anyPipe.model?.config?.id2label;
+  if (id2label && Object.keys(id2label).length === vocabSize) {
+    return Array.from({ length: vocabSize }, (_, i) => id2label[String(i)] ?? i.toString());
+  }
+  const vocab = anyPipe.tokenizer?.get_vocab?.();
+  if (vocab) {
+    const arr = Array.from({ length: vocabSize }, () => "");
+    let filled = 0;
+    for (const [token, idx] of Object.entries(vocab)) {
+      if (idx >= 0 && idx < vocabSize && !arr[idx]) {
+        arr[idx] = token;
+        filled++;
+      }
+    }
+    if (filled === vocabSize) return arr;
+  }
+  return null;
 }
 
 export interface PhonemeLogitsRequest {
   type: "phoneme-logits";
   pcm: Float32Array; // 16 kHz mono
-  device?: "wasm" | "webgpu";
+  device?: Device;
+  /** Correlation id set by the main thread (src/model/runtime.ts). */
+  seq?: number;
 }
 
 export interface PhonemeLogitsResponse {
@@ -38,45 +81,55 @@ export interface PhonemeLogitsResponse {
   logits?: Float32Array;
   /** Vocabulary order for the logit rows (espeak IPA set + CTC blank). */
   phonemeSet?: string[];
+  /** Greedy transcript of the utterance (English sanity check). */
+  transcript?: string;
   latencyMs?: number;
   error?: string;
+  seq?: number;
 }
 
 self.onmessage = async (event: MessageEvent<PhonemeLogitsRequest>) => {
-  const { type, pcm, device = "wasm" } = event.data;
+  const { type, pcm, device = "wasm", seq } = event.data;
   if (type !== "phoneme-logits") return;
   const t0 = performance.now();
   try {
     const pipe = await ensureModel(device);
-    // Raw logits path: run the underlying model and read the CTC output
-    // *before* any argmax/collapse, exposing [time × phonemes] to the scorer.
+    // Raw logits path: `output_logits: true` skips the argmax/CTC-collapse
+    // inside the pipeline and exposes the [time × phonemes] tensor to the scorer.
     const output = await (pipe as unknown as {
       (pcm: Float32Array, opts: Record<string, unknown>): Promise<{
-        logits: { data: Float32Array; dims: number[] };
-        id2label?: Record<number, string>;
+        text: string;
+        logits?: { data: Float32Array; dims: number[] };
       }>;
-    })(pcm, { return_timestamps: false, raw_logits: true });
+    })(pcm, { output_logits: true, return_timestamps: false });
 
+    if (!output.logits) {
+      throw new Error(
+        "Model output had no raw logits — the installed @huggingface/transformers must support output_logits for CTC ASR.",
+      );
+    }
     const dims = output.logits.dims; // [batch=1, time, vocab]
     const vocab = dims[dims.length - 1]!;
-    const logits = new Float32Array(output.logits.data); // copy out of the WASM heap
-    if (!phonemeSet) {
-      phonemeSet =
-        output.id2label && Object.keys(output.id2label).length === vocab
-          ? Object.values(output.id2label)
-          : Array.from({ length: vocab }, (_, i) => (output.id2label?.[i] ?? i.toString()));
+    const logits = new Float32Array(output.logits.data); // copy out of the WASM/WebGPU heap
+    if (!phonemeSetCache) {
+      phonemeSetCache = vocabFromPipeline(pipe, vocab) ?? Array.from({ length: vocab }, (_, i) => i.toString());
     }
     const response: PhonemeLogitsResponse = {
       type: "phoneme-logits-result",
       logits,
-      phonemeSet,
+      phonemeSet: phonemeSetCache,
+      transcript: output.text,
       latencyMs: performance.now() - t0,
+      seq, // echo so the main thread resolves the right request
     };
     (self as unknown as Worker).postMessage(response, [logits.buffer]);
   } catch (err) {
     (self as unknown as Worker).postMessage({
       type: "error",
       error: err instanceof Error ? err.message : String(err),
+      seq, // echo here too — the rejection must reach the right caller
     } satisfies PhonemeLogitsResponse);
   }
 };
+
+let phonemeSetCache: string[] | null = null;
