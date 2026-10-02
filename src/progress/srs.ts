@@ -73,14 +73,15 @@ export function review(card: SrsCard, gopScore: number, now = Date.now()): SrsCa
   const base = { ...card, attempts, meanScore, lastSeenAt: now };
 
   if (q < 3) {
-    const intervalDays = q === 2 ? 0.5 : 0.25; // "hard fail" gets a slightly longer gap
+    // Anki-style "again": a lapsed phoneme is due *now*, so the learner
+    // re-drills it within the same session instead of hours later.
     return {
       ...base,
       ease: Math.max(1.3, base.ease - 0.2),
       reps: 0,
       lapses: base.lapses + 1,
-      intervalDays,
-      dueAt: now + intervalDays * DAY_MS,
+      intervalDays: 0,
+      dueAt: now,
     };
   }
 

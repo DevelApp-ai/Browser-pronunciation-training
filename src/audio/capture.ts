@@ -212,7 +212,8 @@ async function resampleOffline(pcm: Float32Array, fromRate: number): Promise<Flo
   const outLen = Math.max(1, Math.ceil((pcm.length * TARGET_SAMPLE_RATE) / fromRate));
   const offline = new OfflineAudioContext(1, outLen, TARGET_SAMPLE_RATE);
   const buf = offline.createBuffer(1, pcm.length, fromRate);
-  buf.copyToChannel(pcm, 0);
+  // TS 5.7: copyToChannel needs a concrete ArrayBuffer-backed array
+  buf.copyToChannel(new Float32Array(pcm), 0);
   const src = offline.createBufferSource();
   src.buffer = buf;
   src.connect(offline.destination);

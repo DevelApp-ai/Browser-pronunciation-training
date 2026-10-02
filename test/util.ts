@@ -2,7 +2,9 @@
 import type { LogitFrames } from "../src/scoring/types.ts";
 
 export type FrameSpec =
-  /** Single argmax phoneme with the given logit (default dominating). */
+  /** Bare argmax phoneme — dominating logit (10).
+   * Single-phoneme specs also accept a logit. */
+  | string
   | [phoneme: string, logit?: number]
   /** Top-two explicit logits, e.g. [["ɪ", 10], ["iː", 9.4]]. */
   | [[string, number], [string, number]];
@@ -18,7 +20,9 @@ export function makeFrames(phonemeSet: string[], frames: FrameSpec[]): LogitFram
   frames.forEach((spec, t) => {
     const base = t * V;
     const entries: Array<[string, number]> = [];
-    if (Array.isArray(spec[0]) && Array.isArray(spec[1])) {
+    if (typeof spec === "string") {
+      entries.push([spec, 10]);
+    } else if (Array.isArray(spec[0]) && Array.isArray(spec[1])) {
       entries.push(spec[0] as [string, number], spec[1] as [string, number]);
     } else {
       const [p, logit] = spec as [string, number?];

@@ -3,7 +3,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
+# the pipeline modules live one level up from the tests
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import yaml  # CI installs pyyaml; these tests require it
 

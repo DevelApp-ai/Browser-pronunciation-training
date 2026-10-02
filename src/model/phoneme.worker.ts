@@ -20,19 +20,29 @@ import { pipeline, env } from "@huggingface/transformers";
 // Model files: prefer self-hosted /public/models when present (issue #18),
 // fall back to the Hub on first load.
 env.allowLocalModels = true;
-env.backends.onnx.wasm.proxy = false;
+const onnxWasm = (env.backends as { onnx?: { wasm?: { proxy?: boolean } } }).onnx?.wasm;
+if (onnxWasm) onnxWasm.proxy = false;
 
 const MODEL_ID = "onnx-community/wav2vec2-lv-60-espeak-cv-ft-ONNX";
 
 type Device = "wasm" | "webgpu";
 
-/** One pipeline instance per device — a WASM warm-up must not pin WebGPU out. */
-const pipelines = new Map<Device, Promise<Awaited<ReturnType<typeof pipeline>>>>();
+/**
+ * Minimal structural type for the ASR pipeline — the library's own
+ * `ReturnType<typeof pipeline>` union is too complex for tsc to represent.
+ */
+type AsrPipeline = (
+  pcm: Float32Array,
+  opts: Record<string, unknown>,
+) => Promise<{ text: string; logits?: { data: Float32Array; dims: number[] } }>;
 
-function ensureModel(device: Device): Promise<Awaited<ReturnType<typeof pipeline>>> {
+/** One pipeline instance per device — a WASM warm-up must not pin WebGPU out. */
+const pipelines = new Map<Device, Promise<AsrPipeline>>();
+
+function ensureModel(device: Device): Promise<AsrPipeline> {
   let p = pipelines.get(device);
   if (!p) {
-    p = pipeline("automatic-speech-recognition", MODEL_ID, { dtype: "q8", device });
+    p = pipeline("automatic-speech-recognition", MODEL_ID, { dtype: "q8", device }) as unknown as Promise<AsrPipeline>;
     // Do not cache a rejected promise.
     p = p.catch((err) => {
       pipelines.delete(device);
@@ -96,12 +106,7 @@ self.onmessage = async (event: MessageEvent<PhonemeLogitsRequest>) => {
     const pipe = await ensureModel(device);
     // Raw logits path: `output_logits: true` skips the argmax/CTC-collapse
     // inside the pipeline and exposes the [time × phonemes] tensor to the scorer.
-    const output = await (pipe as unknown as {
-      (pcm: Float32Array, opts: Record<string, unknown>): Promise<{
-        text: string;
-        logits?: { data: Float32Array; dims: number[] };
-      }>;
-    })(pcm, { output_logits: true, return_timestamps: false });
+    const output = await pipe(pcm, { output_logits: true, return_timestamps: false });
 
     if (!output.logits) {
       throw new Error(

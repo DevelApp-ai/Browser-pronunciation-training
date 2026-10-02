@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { exerciseSlug, findVoice, voiceMatchesLang, type RVoice } from "../src/ui/reference.ts";
+import { exerciseSlug, findVoice, voiceMatchesLang, type ReferenceVoice } from "../src/ui/reference.ts";
 
 // minimal structural mock for SpeechSynthesisVoice
 const v = (lang: string, local = false) => ({ lang, localService: local, default: false, name: lang, voiceURI: lang, getVoices: [] }) as unknown as SpeechSynthesisVoice;
@@ -40,4 +40,4 @@ describe("exerciseSlug", () => {
   });
 });
 
-void ({} as RVoice); // keep type import used
+void ({} as ReferenceVoice); // keep type import used

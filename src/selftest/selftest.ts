@@ -155,9 +155,9 @@ export function buildLog(entries: TestEntry[]): SelfTestLog {
   return {
     app: "browser-pronunciation-training",
     timestamp: new Date().toISOString(),
-    url: location.href,
-    userAgent: navigator.userAgent,
-    platform: (navigator as Navigator & { platform?: string }).platform ?? "unknown",
+    url: typeof location !== "undefined" ? location.href : "unknown",
+    userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "unknown",
+    platform: typeof navigator !== "undefined" ? ((navigator as Navigator & { platform?: string }).platform ?? "unknown") : "unknown",
     browser: detectBrowser(navigator.userAgent),
     entries,
     summary: summarize(entries),
