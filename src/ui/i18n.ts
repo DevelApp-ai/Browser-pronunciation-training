@@ -1,6 +1,6 @@
 /**
  * i18n-ready UI strings — issue #9.
- * UI must eventually support da/en/ne/Newari contexts.
+ * UI must eventually support da/en/ne/Newari contexts (Newari lands with #17).
  */
 export const STRINGS = {
   en: {
@@ -36,6 +36,23 @@ export const STRINGS = {
     micDenied: "Mikrofonadgang blev nægtet.",
     noMic: "Ingen mikrofon fundet.",
     micUnsupported: "Denne browser understøtter ikke lydoptagelse.",
+  },
+  ne: {
+    record: "रेकर्ड गर्नुहोस्",
+    stop: "रोक्नुहोस्",
+    play: "बजाउनुहोस्",
+    playReference: "नमुना सुन्नुहोस्",
+    slow: "ढिलो (०.७×)",
+    retry: "फेरि प्रयास गर्नुहोस्",
+    listening: "सुन्दै…",
+    scoring: "मूल्याङ्कन गर्दै…",
+    overall: "कुल स्कोर",
+    scoreNone: "प्रतिक्रिया पाउन आफूलाई रेकर्ड गर्नुहोस्",
+    youSaid: "तपाईंले भन्नुभयो",
+    target: "लक्ष्य",
+    micDenied: "माइक्रोफोन पहुँच अस्वीकार गरियो।",
+    noMic: "माइक्रोफोन भेटिएन।",
+    micUnsupported: "यस ब्राउजरले अडियो क्याप्चर समर्थन गर्दैन।",
   },
 } as const;
 
