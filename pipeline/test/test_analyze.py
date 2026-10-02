@@ -1,11 +1,8 @@
 import math
 import sys
 from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "eval"))
-
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "eval"))
 import pytest  # noqa: E402
-
 from analyze_correlation import (  # noqa: E402
     analyze,
     mispronounced_from_row,
@@ -15,31 +12,21 @@ from analyze_correlation import (  # noqa: E402
     spearman,
     threshold_sweep,
 )
-
-
 def test_pearson_perfect_and_anti():
     xs = [1, 2, 3, 4, 5]
     assert pearson(xs, [2, 4, 6, 8, 10]) == pytest.approx(1.0)
     assert pearson(xs, [10, 8, 6, 4, 2]) == pytest.approx(-1.0)
     assert math.isnan(pearson([1], [1]))
-
-
 def test_spearman_handles_ties_and_monotonic():
     assert spearman([1, 2, 3, 4], [1, 4, 9, 16]) == pytest.approx(1.0)
     assert spearman([1, 1, 2], [3, 2, 1]) == pytest.approx(-0.866, abs=1e-3)
-
-
 def test_prf():
     assert prf(3, 1, 1) == (pytest.approx(0.75), pytest.approx(0.75), pytest.approx(0.75))
     assert prf(0, 0, 0) == (0.0, 0.0, 0.0)
-
-
 def test_mispronounced_from_row():
     row = {"phonemes": "θ:0.90 r:0.40 iː:0.55 l:0.99"}
     assert mispronounced_from_row(row, 0.6) == 2
     assert mispronounced_from_row(row, 0.5) == 1
-
-
 def test_analyze_correlations(tmp_path):
     csv_text = (
         "timestamp,language,exercise,overall,segmental,intonation,stress,fluency,"
@@ -55,12 +42,11 @@ def test_analyze_correlations(tmp_path):
     assert out["n_rated"] == 3
     assert out["overall"]["pearson"] == pytest.approx(1.0, abs=0.01)  # near-perfect mock ratings
     assert out["segmental"]["n"] == 3
-
-
 def test_threshold_sweep_prefers_matching_threshold():
     rows = [
         {"phonemes": "a:0.30 b:0.90", "rater_flag": "1"},
-        {"phonemes": "a:0.95 b:0.98", "rater_flag": "0"},
+        {"phonemes": "a:0
+.95 b:0.98", "rater_flag": "0"},
     ]
     sweep = threshold_sweep(rows, [0.4, 0.5, 0.6, 0.7])
     best = max(sweep, key=lambda s: s["f1"])
