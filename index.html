@@ -3,10 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#4a90d9" />
+    <link rel="manifest" href="./manifest.webmanifest" />
     <title>Pronunciation Training</title>
     <style>
       body { font-family: system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
-      #controls { display: flex; gap: 0.5rem; margin: 1rem 0; }
+      #controls { display: flex; gap: 0.5rem; margin: 1rem 0; flex-wrap: wrap; }
       button { padding: 0.5rem 1rem; font-size: 1rem; }
       .chip { font-size: 1.3rem; padding: 0.4rem 0.7rem; border-radius: 8px; border: 1px solid #ccc; margin: 2px; cursor: pointer; }
       .chip-green { background: #d4edda; }
@@ -20,5 +22,16 @@
   <body>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
+    <!-- PWA (issue #18): register the service worker for offline app shell.
+         Relative path so it works on GitHub Pages project sites. -->
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("./sw.js", { scope: "./" }).catch(() => {
+            /* offline is best-effort; the app works online regardless */
+          });
+        });
+      }
+    </script>
   </body>
 </html>
