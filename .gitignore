@@ -1,5 +1,13 @@
 node_modules/
 dist/
 pipeline/build/
-public/models/
+# Ignore downloaded model weights, but self-host tokenizer.json
+# (the Hub repo for wav2vec2-lv-60-espeak-cv-ft-ONNX has no tokenizer.json —
+# issue #28 — so we ship a CTC-compatible one ourselves).
+public/models/*
+!public/models/onnx-community/
+public/models/onnx-community/*
+!public/models/onnx-community/wav2vec2-lv-60-espeak-cv-ft-ONNX/
+public/models/onnx-community/wav2vec2-lv-60-espeak-cv-ft-ONNX/*
+!public/models/onnx-community/wav2vec2-lv-60-espeak-cv-ft-ONNX/tokenizer.json
 .vite/
