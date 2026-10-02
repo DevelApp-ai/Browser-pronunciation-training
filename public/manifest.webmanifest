@@ -1,0 +1,11 @@
+{
+  "name": "Browser Pronunciation Training",
+  "short_name": "Pronunciation",
+  "description": "In-browser pronunciation training: on-device capture, phoneme scoring and feedback.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4a90d9",
+  "icons": []
+}
