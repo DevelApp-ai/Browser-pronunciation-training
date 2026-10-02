@@ -56,8 +56,8 @@ describe("exercisePriority / pickExercise", () => {
   it("prefers exercises with due and unseen phonemes", () => {
     const cards = new Map();
     const strong = newCard("en", "p", NOW - 10 * DAY_MS);
-    const strongCard = review(review(strong, 0.99, NOW - 10 * DAY_MS), 0.99, NOW - 9 * DAY_MS);
-    cards.set("p", strongCard); // p: not due, high score
+    const strongCard = review(review(strong, 0.99, NOW - 10 * DAY_MS), 0.99, NOW);
+    cards.set("p", strongCard); // p: not due for days, high mean score
     // exercise A: only the strong phoneme; exercise B: unseen phoneme θ
     const a = exercisePriority(["p"], cards, NOW);
     const b = exercisePriority(["θ"], cards, NOW);
