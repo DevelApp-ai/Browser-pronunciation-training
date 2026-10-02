@@ -20,7 +20,8 @@ import { loadPack } from "./packs/loader.ts";
 import { graphemesToPhonemes } from "./packs/schema.ts";
 import { withProsody } from "./prosody/merge.ts";
 import { scoreUtterance } from "./scoring/gop.ts";
-import { drawWaveform, playBlob, renderPhonemeRibbon, renderScoreCard, speakReference } from "./ui/feedback.ts";
+import { drawWaveform, playBlob, renderPhonemeRibbon, renderScoreCard } from "./ui/feedback.ts";
+import { playReference, referenceF0, type ReferenceHandle } from "./ui/reference.ts";
 import { t, type Lang } from "./ui/i18n.ts";
 import {
   buildLog,
@@ -45,7 +46,8 @@ function renderSelfTestPage(): void {
 
   app.innerHTML = [
     "<h1>Self-test</h1>",
-    "<p id='stIntro'>Run the checks in this browser, then download the log (JSON and/or text) and upload it.</p>",
+    "<p id='stIntro'>Run the checks in this browser, then download the log (J
+SON and/or text) and upload it.</p>",
     "<div id='controls'>",
     "  <button id='stRun'>Run self-test (environment + model)</button>",
     "  <button id='stMic'>Run microphone test</button>",
@@ -94,7 +96,8 @@ function renderSelfTestPage(): void {
     const btn = ev.currentTarget as HTMLButtonElement;
     btn.disabled = true;
     btn.textContent = "Recording 1.5 s…";
-    try {
+    try
+ {
       record(await runMicrophoneCheck(() => startCapture()));
     } finally {
       btn.disabled = false;
@@ -149,18 +152,43 @@ async function main() {
     <div id="controls">
       <button id="refBtn">${s.playReference}</button>
       <button id="slowBtn">${s.slow}</button>
+      <button id="loopBtn">${s.loop}</button>
       <button id="recBtn">${s.record}</button>
-      <button id="playBtn" disabled>${s.play}</button>
+      <button id="playBtn" disabled>${s.pl
+ay}</button>
       ${evalMode ? '<button id="evalBtn" disabled>Download eval CSV</button>' : ""}
     </div>
     <canvas id="wave" width="600" height="120"></canvas>
+    <p id="refStatus" role="status"></p>
     <div id="scoreCard"><p>${s.scoreNone}</p></div>
     <div id="ribbon"></div>
   `;
 
   const refLang = lang === "en" ? "en-US" : lang;
-  app.querySelector<HTMLButtonElement>("#refBtn")!.addEventListener("click", () => speakReference(sentence, refLang, 1.0));
-  app.querySelector<HTMLButtonElement>("#slowBtn")!.addEventListener("click", () => speakReference(sentence, refLang, 0.7));
+  const refStatus = app.querySelector<HTMLElement>("#refStatus")!;
+  const loopBtn = app.querySelector<HTMLButtonElement>("#loopBtn")!;
+  let refHandle: ReferenceHandle | null = null;
+
+  async function speak(rate: number): Promise<void> {
+    refHandle?.stop();
+    refHandle = await playReference(lang, refLang, sentence, {
+      rate,
+      loop: loopBtn.dataset.on === "1",
+      onStateChange: (playing, source) => {
+        refStatus.textContent = playing ? (source === "clip" ? "▶ human clip" : "▶ system voice") : "";
+      },
+    });
+    if (!refHandle) refStatus.textContent = s.noReference;
+  }
+  app.querySelector<HTMLButtonElement>("#refBtn")!.addEventListener("click", () => void speak(1.0));
+  app.querySelector<HTMLButtonElement>("#slowBtn")!.addEventListener("click", () => void speak(0.7));
+  loopBtn.addEventListener("click", () => {
+    loopBtn.dataset.on = loopBtn.dataset.on === "1" ? "0" : "1";
+    loopBtn.style.fontWeight = loopBtn.dataset.on === "1" ? "bold" : "normal";
+  });
+
+  // Reference intonation template from the bundled clip, when one exists (#16+#17).
+  const refF0 = await referenceF0(lang, sentence);
 
   const recBtn = app.querySelector<HTMLButtonElement>("#recBtn")!;
   const playBtn = app.querySelector<HTMLButtonElement>("#playBtn")!;
@@ -195,13 +223,14 @@ async function main() {
       capture = null;
       try {
         // Backend pinned per model by the benchmark harness (issue #7).
-        const logits = await model.logitFrames(pcm, DEFAULT_BACKENDS["espeak-phoneme"] ?? "wasm");
+        const logits = await model.logitFrames(pcm, DEFAULT_BACKENDS["espeak-phoneme"] ?
+? "wasm");
         const target = graphemesToPhonemes(pack, sentence);
         let result = scoreUtterance(logits, target, pack);
         // Prosody dimensions (issue #16) — pure DSP on the captured PCM,
         // intonation scores against a flat template until #17 provides a
         // reference contour.
-        result = withProsody(result, pcm);
+        result = withProsody(result, pcm, refF0);
         if (evalMode) {
           evalRecords.push(toEvalRecord(result, lang, sentence, logits.latencyMs));
           if (evalBtn) evalBtn.disabled = evalRecords.length === 0;

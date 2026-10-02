@@ -33,3 +33,42 @@ The same page run also reports the detected device tier. Repeat across device ti
 | Model | Default backend |
 | --- | --- |
 | espeak-phoneme | `wasm` (placeholder until first measurements) |
+
+
+## WebNN as a third backend (issue #20, TDS Open Question 6)
+
+Spike status as of 2026-10:
+
+- **Spec status:** the W3C Web Machine Learning WG advanced the WebNN API to
+  Candidate Recommendation Draft in August 2026.
+- **Browser availability:** WebNN is **flag-gated, not enabled by default** in
+  any shipping browser. In Chromium (Chrome/Edge) it is available behind the
+  "Enables WebNN API" flag on Windows, Linux, macOS, Android and ChromeOS;
+  ONNX Runtime Web's WebNN EP requires Windows 11 24H2+ and a flag on the
+  ONNX Runtime side as well. Firefox and Safari have no shipping WebNN path.
+- **Operator coverage:** the ORT Web WebNN EP supports a subset of opsets;
+  wav2vec2-style conv stacks have not been validated on it by us.
+
+### Decision
+
+**Keep flagged, revisit later.** Rationale:
+
+1. Flag-gated APIs are unusable for a consumer product — the learner cannot
+   be asked to flip `chrome://flags`.
+2. Our latency-critical path (phoneme GOP) already meets the ~1 s budget
+   on WASM (pending #28's Edge/Firefox measurements) and has WebGPU as the
+   acceleration tier.
+3. WebNN's value proposition (NPU execution) matters most for larger models
+   (Whisper-class); our scoring model is small.
+
+### Revisit trigger
+
+Revisit when WebNN ships **enabled-by-default in one major browser on
+Windows or Android** AND the #7 harness shows WebGPU slower than WASM on a
+device class that matters (the ONNX Runtime #21618 conv risk). At that
+point: prototype the WebNN EP behind our own `?backend=webnn` flag, extend
+`LatencyStats` with a `"webnn"` backend, and record the table below.
+
+| Model | Device tier | Backend | p50 (ms) | p95 (ms) | n | Notes |
+| --- | --- | --- | --- | --- | --- | --- |
+| espeak-phoneme | — | webnn | — | — | — | not measurable until browsers ship WebNN unflagged |
