@@ -34,6 +34,7 @@ import {
   runEnvironmentChecks,
   runMicrophoneCheck,
   runModelChecks,
+  runOfflineChecks,
   type SelfTestLog,
   type TestEntry,
 } from "./selftest/selftest.ts";
@@ -61,6 +62,7 @@ function renderSelfTestPage(): void {
     "<div id='controls'>",
     "  <button id='stRun'>Run self-test (environment + model)</button>",
     "  <button id='stMic'>Run microphone test</button>",
+    "  <button id='stOffline'>Run offline/PWA checks</button>",
     "  <button id='stJson' disabled>Download log (JSON)</button>",
     "  <button id='stTxt' disabled>Download log (TXT)</button>",
     "  <button id='stCopy' disabled>Copy text summary</button>",
@@ -111,6 +113,20 @@ function renderSelfTestPage(): void {
     } finally {
       btn.disabled = false;
       btn.textContent = "Run microphone test";
+    }
+  });
+
+  app.querySelector<HTMLButtonElement>("#stOffline")!.addEventListener("click", async (ev) => {
+    const btn = ev.currentTarget as HTMLButtonElement;
+    btn.disabled = true;
+    btn.textContent = "Checking…";
+    try {
+      record(await runOfflineChecks());
+    } catch (err) {
+      record([{ name: "offline/PWA checks", status: "fail", detail: String(err) }]);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Run offline/PWA checks";
     }
   });
 
