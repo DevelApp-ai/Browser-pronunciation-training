@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { greedyCtcDecode, scoreUtterance } from "../src/scoring/gop.ts";
 import { makeFrames } from "./util.ts";
-import en from "../src/packs/en.json" with { type: "json" };
+import en from "../public/packs/en.json" with { type: "json" };
 import type { PhonemePack } from "../src/packs/schema.ts";
 
 const pack = en as unknown as PhonemePack;

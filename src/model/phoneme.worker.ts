@@ -39,13 +39,25 @@ type AsrPipeline = (
   opts: Record<string, unknown>,
 ) => Promise<{ text: string; logits?: { data: Float32Array; dims: number[] } }>;
 
+/** Forward transformers.js per-file download progress to the main thread (#18). */
+const progress_callback = (data: { file?: string; loaded?: number; total?: number }) => {
+  if (typeof data.loaded === "number" && typeof data.total === "number") {
+    (self as unknown as Worker).postMessage({
+      type: "model-progress",
+      file: data.file ?? "",
+      loaded: data.loaded,
+      total: data.total,
+    } satisfies PhonemeProgressMessage);
+  }
+};
+
 /** One pipeline instance per device — a WASM warm-up must not pin WebGPU out. */
 const pipelines = new Map<Device, Promise<AsrPipeline>>();
 
 function ensureModel(device: Device): Promise<AsrPipeline> {
   let p = pipelines.get(device);
   if (!p) {
-    p = pipeline("automatic-speech-recognition", MODEL_ID, { dtype: "q8", device }) as unknown as Promise<AsrPipeline>;
+    p = pipeline("automatic-speech-recognition", MODEL_ID, { dtype: "q8", device, progress_callback }) as unknown as Promise<AsrPipeline>;
     // Do not cache a rejected promise.
     p = p.catch((err) => {
       pipelines.delete(device);
@@ -79,6 +91,14 @@ function vocabFromPipeline(pipe: unknown, vocabSize: number): string[] | null {
     if (filled === vocabSize) return arr;
   }
   return null;
+}
+
+/** Unsolicited progress event posted while model files download (issue #18). */
+export interface PhonemeProgressMessage {
+  type: "model-progress";
+  file: string;
+  loaded: number;
+  total: number;
 }
 
 export interface PhonemeLogitsRequest {

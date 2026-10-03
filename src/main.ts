@@ -16,6 +16,7 @@ import { listInputDevices, startCapture } from "./audio/capture.ts";
 import { benchmarkModel, DEFAULT_BACKENDS, statsToMarkdown, syntheticUtterances } from "./benchmark/harness.ts";
 import { downloadEvalCsv, toEvalRecord, toEvalCsv, type EvalRecord } from "./eval/collect.ts";
 import { loadPhonemeModel } from "./model/runtime.ts";
+import { DownloadTracker, formatMB, modelFilesCached } from "./model/download.ts";
 import { loadPack } from "./packs/loader.ts";
 import { graphemesToPhonemes } from "./packs/schema.ts";
 import { loadSummary, pickExercise, recordAttempt } from "./progress/session.ts";
@@ -187,6 +188,8 @@ async function main() {
     <div id="progress" class="progress"></div>
     <canvas id="wave" width="600" height="120"></canvas>
     <p id="refStatus" role="status"></p>
+    <p id="modelStatus" role="status"></p>
+    <div id="modelBarWrap" hidden><div id="modelBar"></div></div>
     <div id="scoreCard"><p>${s.scoreNone}</p></div>
     <div id="ribbon"></div>
   `;
@@ -195,6 +198,28 @@ async function main() {
     const summary = await loadSummary(progress, lang);
     renderProgress(summary.dueCount, summary.totalCards, summary.weakest);
   }
+
+  // Offline model status (issue #18): the first run downloads the q8 ONNX
+  // weights from the Hub; transformers.js then caches them in Cache
+  // Storage, so scoring keeps working with the network off.
+  const modelStatus = app.querySelector<HTMLElement>("#modelStatus")!;
+  const modelBarWrap = app.querySelector<HTMLElement>("#modelBarWrap")!;
+  const modelBar = app.querySelector<HTMLElement>("#modelBar")!;
+  const tracker = new DownloadTracker();
+  void modelFilesCached().then((cached) => {
+    modelStatus.textContent = cached ? s.modelOfflineReady : s.modelFirstDownload;
+  });
+  model.onProgress((p) => {
+    const agg = tracker.update(p);
+    if (agg.complete) {
+      modelBarWrap.hidden = true;
+      modelStatus.textContent = s.modelOfflineReady;
+    } else {
+      modelBarWrap.hidden = false;
+      modelBar.style.width = agg.percent.toFixed(1) + "%";
+      modelStatus.textContent = s.modelDownloading.replace("{mb}", formatMB(agg.loadedBytes) + " / " + formatMB(agg.totalBytes));
+    }
+  });
 
   const refLang = lang === "en" ? "en-US" : lang;
   const refStatus = app.querySelector<HTMLElement>("#refStatus")!;
