@@ -61,8 +61,8 @@ function renderSelfTestPage(): void {
     "<p id='stIntro'>Run the checks in this browser, then download the log (JSON and/or text) and upload it.</p>",
     "<div id='controls'>",
     "  <button id='stRun'>Run self-test (environment + model)</button>",
-    "  <button id='stMic'>Run microphone test</button>
-    <button id='stOffline'>Run offline/PWA checks</button>",
+    "  <button id='stMic'>Run microphone test</button>",
+    "  <button id='stOffline'>Run offline/PWA checks</button>",
     "  <button id='stJson' disabled>Download log (JSON)</button>",
     "  <button id='stTxt' disabled>Download log (TXT)</button>",
     "  <button id='stCopy' disabled>Copy text summary</button>",
