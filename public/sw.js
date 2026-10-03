@@ -6,11 +6,15 @@
  *    Cache Storage for ONNX files (and HF downloads are cross-origin).
  * Lazy per-language loading: packs are fetched only when a language is used.
  */
-const VERSION = "bpt-v1";
+const VERSION = "bpt-v2";
 const SHELL = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
+  "./packs/en.json",
+  "./packs/da.json",
+  "./packs/ne.json",
+  "./packs/new.json",
 ];
 
 self.addEventListener("install", (event) => {

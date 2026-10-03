@@ -25,6 +25,9 @@ export const STRINGS = {
     micDenied: "Microphone access was denied.",
     noMic: "No microphone found.",
     micUnsupported: "This browser does not support audio capture.",
+    modelFirstDownload: "First recording downloads the phoneme model (~50 MB, q8). It is stored in your browser — everything works offline afterwards.",
+    modelDownloading: "Downloading model… {mb}",
+    modelOfflineReady: "Model ready on this device — scoring works offline. ✓",
   },
   da: {
     record: "Optag",
@@ -48,6 +51,9 @@ export const STRINGS = {
     micDenied: "Mikrofonadgang blev nægtet.",
     noMic: "Ingen mikrofon fundet.",
     micUnsupported: "Denne browser understøtter ikke lydoptagelse.",
+    modelFirstDownload: "Første optagelse downloader fonem-modellen (~50 MB, q8). Den gemmes i din browser — bagefter virker alt offline.",
+    modelDownloading: "Downloader model… {mb}",
+    modelOfflineReady: "Modellen er klar på denne enhed — vurdering virker offline. ✓",
   },
   ne: {
     record: "रेकोर्ड गर्नुहोस्",
@@ -71,6 +77,9 @@ export const STRINGS = {
     micDenied: "माइक्रोफोन पहुँच अस्वीकार गरियो।",
     noMic: "माइक्रोफोन भेटिएन।",
     micUnsupported: "यस ब्राउजरले अडियो क्याप्चर समर्थन गर्दैन।",
+    modelFirstDownload: "पहिलो रेकोर्डले फोनेम मोडेल (~५० MB, q8) डाउनलोड गर्छ। यो तपाईंको ब्राउजरमा भण्डारण हुन्छ — त्यसपछि सबै अफलाइन चल्छ।",
+    modelDownloading: "मोडेल डाउनलोड हुँदै… {mb}",
+    modelOfflineReady: "मोडेल यो यन्त्रमा तयार छ — मूल्यांकन अफलाइन चल्छ। ✓",
   },
 } as const;
 

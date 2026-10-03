@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { candidateSet, graphemesToPhonemes, tipFor, type PhonemePack } from "../src/packs/schema.ts";
-import en from "../src/packs/en.json" with { type: "json" };
-import da from "../src/packs/da.json" with { type: "json" };
-import ne from "../src/packs/ne.json" with { type: "json" };
-import neww from "../src/packs/new.json" with { type: "json" };
+import en from "../public/packs/en.json" with { type: "json" };
+import da from "../public/packs/da.json" with { type: "json" };
+import ne from "../public/packs/ne.json" with { type: "json" };
+import neww from "../public/packs/new.json" with { type: "json" };
 
 const pack = en as unknown as PhonemePack;
 

@@ -2,7 +2,7 @@
  * Main-thread wrapper around the phoneme worker — issue #5.
  * startCapture() (#4) → PCM → worker logits → scoreUtterance() (#6).
  */
-import type { PhonemeLogitsRequest, PhonemeLogitsResponse } from "./phoneme.worker.ts";
+import type { PhonemeLogitsRequest, PhonemeLogitsResponse, PhonemeProgressMessage } from "./phoneme.worker.ts";
 import type { LogitFrames } from "../scoring/types.ts";
 
 export interface PhonemeModel {
@@ -13,6 +13,8 @@ export interface PhonemeModel {
   logitFrames(pcm: Float32Array, device?: "wasm" | "webgpu"): Promise<
     LogitFrames & { latencyMs: number; transcript?: string }
   >;
+  /** Subscribe to model-download progress (first run only). Returns an unsubscribe. */
+  onProgress(cb: (p: { file: string; loaded: number; total: number }) => void): () => void;
   terminate(): void;
 }
 
@@ -23,9 +25,15 @@ export function loadPhonemeModel(): PhonemeModel {
     number,
     { resolve: (v: LogitFrames & { latencyMs: number; transcript?: string }) => void; reject: (e: Error) => void }
   >();
+  const progressCbs = new Set<(p: { file: string; loaded: number; total: number }) => void>();
 
-  worker.onmessage = (event: MessageEvent<PhonemeLogitsResponse>) => {
+  worker.onmessage = (event: MessageEvent<PhonemeLogitsResponse | PhonemeProgressMessage>) => {
     const data = event.data;
+    // Download progress (issue #18) is unsolicited — no seq, no pending entry.
+    if (data.type === "model-progress") {
+      for (const cb of progressCbs) cb({ file: data.file, loaded: data.loaded, total: data.total });
+      return;
+    }
     const id = data.seq;
     if (id === undefined) return; // unsolicited message — no matching request
     const entry = pending.get(id);
@@ -58,6 +66,10 @@ export function loadPhonemeModel(): PhonemeModel {
         // Copy the PCM — transferring would detach the caller's buffer.
         worker.postMessage(msg);
       });
+    },
+    onProgress(cb) {
+      progressCbs.add(cb);
+      return () => progressCbs.delete(cb);
     },
     terminate() {
       worker.terminate();

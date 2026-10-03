@@ -1,14 +1,14 @@
 /**
  * Pack loader — issue #8.
  * Packs are plain JSON fetched at runtime: adding a language requires no rebuild.
- * In dev, Vite serves source files, so the default base covers `src/packs`;
- * for production builds copy the pack JSONs to a served `/packs` directory.
+ * Packs live in public/packs — Vite serves them in dev AND copies them into
+ * the build output (the old "/src/packs" default 404'd on GitHub Pages).
  */
 import type { PhonemePack } from "./schema.ts";
 
 const cache = new Map<string, PhonemePack>();
 
-export async function loadPack(language: string, baseUrl = "/src/packs"): Promise<PhonemePack> {
+export async function loadPack(language: string, baseUrl = import.meta.env.BASE_URL + "packs"): Promise<PhonemePack> {
   const cached = cache.get(language);
   if (cached) return cached;
   const res = await fetch(`${baseUrl}/${language}.json`);
