@@ -12,7 +12,9 @@ Stages:
   2. quantize (quantize_model.py) fp32 → each requested dtype
   3. validate(validate_model.py)  CER/PER regression gate (--results required
                                   unless --skip-validate for dry runs)
-  4. publish  (publish_model.py)  versioned local release + languages.json
+  4. verify  (verify_runtime.py) WASM inference + WebGPU op coverage
+                                  (--verify; writes runtime_report.json for #7)
+  5. publish  (publish_model.py)  versioned local release + languages.json
 
 Each stage runs as a subprocess and must succeed for the next to start —
 the same discipline a CI job would apply.
@@ -20,6 +22,7 @@ the same discipline a CI job would apply.
 from __future__ import annotations
 
 import argparse
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -42,6 +45,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--baseline", type=float, help="baseline error rate for the validation gate")
     parser.add_argument("--results", help="JSON file with [{hyp: [...], ref: [...]}, ...] for validation")
     parser.add_argument("--skip-validate", action="store_true", help="dry-run mode: skip the validation gate")
+    parser.add_argument("--verify", action="store_true",
+                        help="after quantize: verify WASM inference + WebGPU op coverage (writes runtime_report.json)")
+    parser.add_argument("--seconds", type=float, default=1.0,
+                        help="seconds of zero-audio for the verification run (default: 1)")
+    parser.add_argument("--verify-dtype", default="q8", help="which quantized graph to verify (default: q8)")
     args = parser.parse_args(argv)
 
     dtypes = [d.strip() for d in args.dtypes.split(",") if d.strip()]
@@ -64,6 +72,16 @@ def main(argv: list[str] | None = None) -> int:
     else:
         print("skipping validation gate (--skip-validate) — DO NOT publish unvalidated artifacts to prod",
               file=sys.stderr)
+
+    if args.verify:
+        verify_cmd = [py, str(PIPELINE / "verify_runtime.py"), args.name,
+                      "--dtype", args.verify_dtype, "--seconds", str(args.seconds)]
+        if shutil.which("node"):
+            verify_cmd.append("--run-wasm")
+        else:
+            print("node not found — WebGPU static coverage only (no WASM inference)", file=sys.stderr)
+        if (rc := stage("verify", verify_cmd)) != 0:
+            return rc
 
     return stage("publish", [py, str(PIPELINE / "publish_model.py"), args.name])
 

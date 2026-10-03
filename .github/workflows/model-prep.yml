@@ -1,0 +1,71 @@
+# Model-prep pipeline — issue #10.
+# Verifies a REAL exported graph runs on WASM (Node + onnxruntime-web) and
+# records WebGPU operator coverage. Manual (workflow_dispatch) because it
+# downloads ~100 MB of weights; the in-browser WebGPU run is #7's harness.
+#
+# Set the HF_TOKEN secret (Settings → Secrets → Actions) to also enable
+# `publish_model.py` with `publish.target: hub` for artifacts that pass.
+name: model-prep
+
+on:
+  workflow_dispatch:
+    inputs:
+      artifact:
+        description: "artifact name from pipeline/config.yaml"
+        default: espeak-phoneme
+      dtype:
+        description: "quantized graph to verify"
+        default: q8
+      seconds:
+        description: "seconds of zero-audio fed to the graph"
+        default: "1"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # ops inventory (onnx) + WASM inference (onnxruntime-web in Node)
+      - run: pip install onnx pyyaml
+      - run: npm install --no-audit --no-fund onnxruntime-web
+
+      # The artifact the browser actually consumes today: the Hub's q8 graph.
+      # Replace this download with export_model.py + quantize_model.py output
+      # once a finetuned checkpoint (#11–#14) goes through the pipeline.
+      - name: Fetch baseline q8 graph from the Hub
+        run: |
+          mkdir -p pipeline/build/${{ inputs.artifact }}/${{ inputs.dtype }}
+          curl -fL --retry 3 \
+            "https://huggingface.co/onnx-community/wav2vec2-lv-60-espeak-cv-ft-ONNX/resolve/main/onnx/model_q8.onnx" \
+            -o "pipeline/build/${{ inputs.artifact }}/${{ inputs.dtype }}/model.onnx"
+
+      - name: Verify WASM inference + WebGPU op coverage
+        run: |
+          python pipeline/verify_runtime.py "${{ inputs.artifact }}" \
+            --dtype "${{ inputs.dtype }}" \
+            --seconds "${{ inputs.seconds }}" \
+            --run-wasm
+        env:
+          NODE_PATH: ${{ github.workspace }}/node_modules
+
+      - name: Upload runtime report for #7's harness
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-report-${{ inputs.artifact }}-${{ inputs.dtype }}
+          path: pipeline/build/${{ inputs.artifact }}/runtime_report.json
+          if-no-files-found: error
+
+      # Optional: also quantize from the fp32 export and check the q8 recipe
+      # end-to-end (uncomment once a fp32 source_model is configured):
+      # - run: pip install torch --index-url https://download.pytorch.org/whl/cpu
+      #   pip install "optimum[exporters]" onnxruntime onnxconverter_common
+      # - run: python pipeline/build_artifact.py "${{ inputs.artifact }}" --dtypes q8 --verify --skip-validate
