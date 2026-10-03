@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import sys
 from pathlib import Path
@@ -20,6 +21,51 @@ from export_model import REPO_ROOT, artifact_dir, get_artifact, load_config
 MODELS_DIR = REPO_ROOT / "public" / "models"
 # browser-side language → model revision map (imported by the runtime config)
 LANG_MAP_PATH = REPO_ROOT / "public" / "models" / "languages.json"
+
+
+def hub_files_to_upload(name: str, artifact: dict) -> list[tuple[Path, str]]:
+    """(local_path, hub_filename) pairs for the hub upload (pure, unit-testable)."""
+    pairs: list[tuple[Path, str]] = []
+    for dtype in artifact.get("quantizations", []):
+        src = artifact_dir(name) / dtype / "model.onnx"
+        if src.is_file():
+            pairs.append((src, f"onnx/model_{dtype}.onnx"))
+    return pairs
+
+
+def publish_hub(name: str, artifact: dict) -> str:
+    """Versioned release on the Hugging Face Hub (onnx-community/* layout)."""
+    token = os.environ.get("HF_TOKEN")
+    if not token:
+        print("hub publishing requires HF_TOKEN (CI secret / local env) — "
+              "see .github/workflows/model-prep.yml", file=sys.stderr)
+        raise SystemExit(3)
+    try:
+        from huggingface_hub import HfApi  # lazy: heavy, credentials-gated
+    except ImportError as err:
+        print(f"hub publishing requires huggingface_hub: {err}", file=sys.stderr)
+        raise SystemExit(3) from err
+
+    repo_id = artifact["publish"]["hub_repo"]
+    api = HfApi(token=token)
+    api.create_repo(repo_id, repo_type="model", exist_ok=True)
+    revision = artifact["revision"]
+    pairs = hub_files_to_upload(name, artifact)
+    if not pairs:
+        print(f"no quantized graphs found for {name} — did export/quantize run?", file=sys.stderr)
+        raise SystemExit(2)
+    for src, filename in pairs:
+        api.upload_file(
+            path_or_fileobj=str(src),
+            path_in_repo=filename,
+            repo_id=repo_id,
+            repo_type="model",
+            commit_message=f"{name}: upload {filename} ({revision})",
+        )
+    # tag the revision so the browser config can pin language → model revision
+    api.create_tag(repo_id, tag=revision, repo_type="model", exist_ok=True)
+    print(f"published {name}@{revision} → https://huggingface.co/{repo_id} (tag {revision})", file=sys.stderr)
+    return repo_id
 
 
 def build_language_map(config: dict) -> dict:
@@ -79,8 +125,7 @@ def main(argv: list[str] | None = None) -> int:
     if target == "local":
         publish_local(args.name, artifact)
     elif target == "hub":
-        print("hub publishing requires huggingface_hub — run in CI with credentials", file=sys.stderr)
-        return 3
+        publish_hub(args.name, artifact)
     else:
         print(f"unknown publish target '{target}'", file=sys.stderr)
         return 2
