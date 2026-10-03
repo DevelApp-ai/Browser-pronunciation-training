@@ -40,7 +40,9 @@ type AsrPipeline = (
 ) => Promise<{ text: string; logits?: { data: Float32Array; dims: number[] } }>;
 
 /** Forward transformers.js per-file download progress to the main thread (#18). */
-const progress_callback = (data: { file?: string; loaded?: number; total?: number }) => {
+// transformers.js ProgressCallbackParam intersects Record<string, unknown>, so a narrow
+// object type is not assignable to it — accept the full callback param shape.
+const progress_callback = (data: { file?: string; loaded?: number; total?: number } & Record<string, unknown>) => {
   if (typeof data.loaded === "number" && typeof data.total === "number") {
     (self as unknown as Worker).postMessage({
       type: "model-progress",
