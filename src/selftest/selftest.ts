@@ -3,11 +3,12 @@
  * the current browser (Edge, Firefox, …) and produces a downloadable log.
  *
  * Open the deployed app with ?selftest=1, click "Run self-test" (and the
- * microphone test if you want capture coverage), then download the log
- * (JSON and/or text) and upload it for analysis.
+ * microphone or offline/PWA checks if you want that coverage), then download
+ * the log (JSON and/or text) and upload it for analysis.
  */
 import type { PhonemeModel } from "../model/runtime.ts";
 import { syntheticUtterance } from "../benchmark/harness.ts";
+import { modelFilesCached } from "../model/download.ts";
 
 export type TestStatus = "pass" | "fail" | "warn" | "skip";
 
@@ -143,6 +144,82 @@ export async function runMicrophoneCheck(
   } catch (err) {
     entries.push(entry("Microphone capture", "fail", err instanceof Error ? `${err.name}: ${err.message}` : String(err)));
   }
+  return entries;
+}
+
+
+/**
+ * Offline / PWA checks (#18): service worker registration + precache contents,
+ * pack fetchability, and whether the model weights are already in the
+ * transformers.js Cache Storage. Together these tell you whether the app can
+ * start and score without a network — run once online (to install + cache),
+ * then again with networking disabled to confirm everything is served offline.
+ */
+export async function runOfflineChecks(): Promise<TestEntry[]> {
+  const entries: TestEntry[] = [];
+  const langs = ["en", "da", "ne", "new"];
+  const baseUrl = import.meta.env.BASE_URL;
+
+  // 1. Service worker: registered, and is this page controlled by it?
+  const hasSW = typeof navigator !== "undefined" && "serviceWorker" in navigator;
+  const sw = hasSW ? await navigator.serviceWorker.getRegistration() : undefined;
+  entries.push(entry("Service worker registration", sw ? "pass" : "fail",
+    sw
+      ? `scope: ${sw.scope}; page ${navigator.serviceWorker.controller ? "controlled (offline shell served by SW)" : "NOT controlled — reload once after install"}`
+      : "not registered — offline shell unavailable"));
+
+  // 2. SW version (fetch the script bypassing the HTTP cache).
+  let version = "unknown";
+  try {
+    const res = await fetch(baseUrl + "sw.js", { cache: "no-store" });
+    const m = (await res.text()).match(/VERSION\s*=\s*"([^"]+)"/);
+    version = m?.[1] ?? "unknown";
+    entries.push(entry("Service worker version", version === "unknown" ? "warn" : "pass", `sw.js VERSION: ${version}`));
+  } catch (err) {
+    entries.push(entry("Service worker version", "warn", `could not fetch sw.js: ${String(err)}`));
+  }
+
+  // 3. Cache Storage: what the SW precache actually holds.
+  if (typeof caches === "undefined") {
+    entries.push(entry("Cache Storage", "fail", "caches API unavailable (insecure context?)"));
+  } else {
+    const keys = await caches.keys();
+    entries.push(entry("Cache Storage keys", keys.length > 0 ? "pass" : "warn",
+      keys.length ? keys.join(", ") : "empty — SW precache not installed yet"));
+    const swCacheName = keys.find((k) => k === version) ?? keys[0];
+    if (swCacheName) {
+      const cache = await caches.open(swCacheName);
+      const found: string[] = [];
+      for (const l of langs) {
+        if (await cache.match(new URL(`packs/${l}.json`, location.href).href)) found.push(l);
+      }
+      const shellHit =
+        (await cache.match(new URL("index.html", location.href).href)) ||
+        (await cache.match(new URL("./", location.href).href));
+      entries.push(entry("SW precache contents", found.length === langs.length && shellHit ? "pass" : "warn",
+        `packs cached: ${found.length}/${langs.length}${found.length ? " (" + found.join(", ") + ")" : ""}; app shell: ${shellHit ? "cached" : "missing"}`));
+    }
+  }
+
+  // 4. Packs fetchable from the server (run this online first).
+  const ok: string[] = [];
+  for (const l of langs) {
+    try {
+      const r = await fetch(`${baseUrl}packs/${l}.json`);
+      const j: unknown = r.ok ? await r.json() : null;
+      if (j && typeof j === "object") ok.push(l);
+    } catch {
+      // counted below
+    }
+  }
+  entries.push(entry("Pack fetch", ok.length === langs.length ? "pass" : "fail",
+    ok.length === langs.length ? `all ${langs.length} packs fetched OK` : `${ok.length}/${langs.length} fetched (${ok.join(", ") || "none"})`));
+
+  // 5. Model weights in the transformers.js cache → offline inference ready.
+  const cached = await modelFilesCached();
+  entries.push(entry("Model files cache", cached ? "pass" : "warn",
+    cached ? "model weights cached — offline inference ready" : "not cached yet — first model load needs the network"));
+
   return entries;
 }
 
