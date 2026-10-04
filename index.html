@@ -26,11 +26,12 @@
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
     <!-- PWA (issue #18): register the service worker for offline app shell.
-         Relative path so it works on GitHub Pages project sites. -->
+         Relative path so it works on GitHub Pages project sites.
+         updateViaCache: "none" — SW updates must not wait for the HTTP cache. -->
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-          navigator.serviceWorker.register("./sw.js", { scope: "./" }).catch(() => {
+          navigator.serviceWorker.register("./sw.js", { scope: "./", updateViaCache: "none" }).catch(() => {
             /* offline is best-effort; the app works online regardless */
           });
         });
