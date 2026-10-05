@@ -16,6 +16,7 @@
  * - the greedy transcript is returned for the English sanity check.
  */
 import { pipeline, env } from "@huggingface/transformers";
+import { BASELINE_MODEL_ID, modelConfigForLang } from "./config.ts";
 
 // Model files: prefer self-hosted /public/models when present (issue #18),
 // fall back to the Hub on first load.
@@ -26,7 +27,6 @@ env.localModelPath = import.meta.env.BASE_URL + "models/";
 const onnxWasm = (env.backends as { onnx?: { wasm?: { proxy?: boolean } } }).onnx?.wasm;
 if (onnxWasm) onnxWasm.proxy = false;
 
-const MODEL_ID = "onnx-community/wav2vec2-lv-60-espeak-cv-ft-ONNX";
 
 type Device = "wasm" | "webgpu";
 
@@ -54,18 +54,19 @@ const progress_callback = (data: { file?: string; loaded?: number; total?: numbe
 };
 
 /** One pipeline instance per device — a WASM warm-up must not pin WebGPU out. */
-const pipelines = new Map<Device, Promise<AsrPipeline>>();
+const pipelines = new Map<string, Promise<AsrPipeline>>();
 
-function ensureModel(device: Device): Promise<AsrPipeline> {
-  let p = pipelines.get(device);
+function ensureModel(device: Device, modelId: string): Promise<AsrPipeline> {
+  const key = `${device}:${modelId}`;
+  let p = pipelines.get(key);
   if (!p) {
-    p = pipeline("automatic-speech-recognition", MODEL_ID, { dtype: "q8", device, progress_callback }) as unknown as Promise<AsrPipeline>;
+    p = pipeline("automatic-speech-recognition", modelId, { dtype: "q8", device, progress_callback }) as unknown as Promise<AsrPipeline>;
     // Do not cache a rejected promise.
     p = p.catch((err) => {
-      pipelines.delete(device);
+      pipelines.delete(key);
       throw err;
     });
-    pipelines.set(device, p);
+    pipelines.set(key, p);
   }
   return p;
 }
@@ -106,6 +107,8 @@ export interface PhonemeProgressMessage {
 export interface PhonemeLogitsRequest {
   type: "phoneme-logits";
   pcm: Float32Array; // 16 kHz mono
+  /** Language whose pinned artifact should load (issue #10 revision map). */
+  lang?: string;
   device?: Device;
   /** Correlation id set by the main thread (src/model/runtime.ts). */
   seq?: number;
@@ -124,11 +127,12 @@ export interface PhonemeLogitsResponse {
 }
 
 self.onmessage = async (event: MessageEvent<PhonemeLogitsRequest>) => {
-  const { type, pcm, device = "wasm", seq } = event.data;
+  const { type, pcm, device = "wasm", seq, lang } = event.data;
   if (type !== "phoneme-logits") return;
   const t0 = performance.now();
   try {
-    const pipe = await ensureModel(device);
+    const { modelId } = lang ? await modelConfigForLang(lang) : { modelId: BASELINE_MODEL_ID };
+    const pipe = await ensureModel(device, modelId);
     // Raw logits path: `output_logits: true` skips the argmax/CTC-collapse
     // inside the pipeline and exposes the [time × phonemes] tensor to the scorer.
     const output = await pipe(pcm, { output_logits: true, return_timestamps: false });

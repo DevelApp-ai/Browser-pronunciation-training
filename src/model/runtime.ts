@@ -10,7 +10,7 @@ export interface PhonemeModel {
    * Given 16 kHz mono PCM, return the [time × phonemes] raw logit tensor
    * plus inference latency and the greedy transcript (sanity check).
    */
-  logitFrames(pcm: Float32Array, device?: "wasm" | "webgpu"): Promise<
+  logitFrames(pcm: Float32Array, device?: "wasm" | "webgpu", lang?: string): Promise<
     LogitFrames & { latencyMs: number; transcript?: string }
   >;
   /** Subscribe to model-download progress (first run only). Returns an unsubscribe. */
@@ -57,12 +57,12 @@ export function loadPhonemeModel(): PhonemeModel {
   };
 
   return {
-    logitFrames(pcm: Float32Array, device: "wasm" | "webgpu" = "wasm") {
+    logitFrames(pcm: Float32Array, device: "wasm" | "webgpu" = "wasm", lang?: string) {
       seq += 1;
       const id = seq;
       return new Promise((resolve, reject) => {
         pending.set(id, { resolve, reject });
-        const msg: PhonemeLogitsRequest = { type: "phoneme-logits", pcm, device, seq: id };
+        const msg: PhonemeLogitsRequest = { type: "phoneme-logits", pcm, device, seq: id, lang };
         // Copy the PCM — transferring would detach the caller's buffer.
         worker.postMessage(msg);
       });
