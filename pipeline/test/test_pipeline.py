@@ -56,7 +56,10 @@ def test_language_map_covers_all_four_languages():
     lang_map = build_language_map(cfg)
     for lang in ("en", "da", "ne", "new"):
         assert lang in lang_map, f"{lang} missing from the language map"
-        assert lang_map[lang]["revision"] == "v1-espeak"
+    # after the #11–#14 finetune configs, each language pins its own artifact
+    for lang in ("en", "da", "ne", "new"):
+        assert lang_map[lang]["artifact"] == f"{lang}-phoneme"
+        assert lang_map[lang]["revision"] == f"v1-{lang}"
 
 
 def test_cli_dry_runs():
