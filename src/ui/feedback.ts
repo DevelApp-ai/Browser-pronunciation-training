@@ -74,9 +74,10 @@ export function drawWaveform(canvas: HTMLCanvasElement, analyser: AnalyserNode):
   let raf = 0;
   const draw = () => {
     analyser.getByteTimeDomainData(data);
-    ctx.fillStyle = "#fff";
+    const styles = getComputedStyle(canvas);
+    ctx.fillStyle = styles.getPropertyValue("background-color") || "#fff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.strokeStyle = "#4a90d9";
+    ctx.strokeStyle = styles.getPropertyValue("--primary").trim() || "#4a90d9";
     ctx.lineWidth = 2;
     ctx.beginPath();
     const step = canvas.width / data.length;

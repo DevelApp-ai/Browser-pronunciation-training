@@ -10,4 +10,4 @@ public/models/onnx-community/*
 !public/models/onnx-community/wav2vec2-lv-60-espeak-cv-ft-ONNX/
 public/models/onnx-community/wav2vec2-lv-60-espeak-cv-ft-ONNX/*
 !public/models/onnx-community/wav2vec2-lv-60-espeak-cv-ft-ONNX/tokenizer.json
-.vite/
+.vite/__pycache__/
