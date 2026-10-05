@@ -5,21 +5,174 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#4a90d9" />
     <link rel="manifest" href="./manifest.webmanifest" />
-    <title>Pronunciation Training</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Quicksand:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <title>SpeakRight — Pronunciation Practice</title>
     <style>
-      body { font-family: system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
-      #controls { display: flex; gap: 0.5rem; margin: 1rem 0; flex-wrap: wrap; }
-      button { padding: 0.5rem 1rem; font-size: 1rem; }
-      .chip { font-size: 1.3rem; padding: 0.4rem 0.7rem; border-radius: 8px; border: 1px solid #ccc; margin: 2px; cursor: pointer; }
-      .chip-green { background: #d4edda; }
-      .chip-amber { background: #fff3cd; }
-      .chip-red { background: #f8d7da; }
-      #diagnosis { margin: 0.75rem 0; min-height: 1.5rem; font-style: italic; }
-      .overall { font-size: 1.5rem; font-weight: 600; }
-      canvas { border: 1px solid #ddd; border-radius: 8px; display: block; }
-      .progress { font-style: italic; color: #555; margin: 0.5rem 0; min-height: 1.2rem; }
-      #modelBarWrap { background: #e0e0e0; border-radius: 6px; height: 8px; margin: 0.5rem 0; overflow: hidden; }
-      #modelBar { background: #4a90d9; height: 100%; width: 0; transition: width 0.2s ease; }
+      /* Design tokens shared with the sibling educational apps
+         (handwriting-practice / tablet-math-practice). */
+      :root {
+        --background: oklch(0.97 0.01 85);
+        --foreground: oklch(0.25 0.02 270);
+        --card: oklch(1 0 0);
+        --card-foreground: oklch(0.25 0.02 270);
+        --primary: oklch(0.65 0.15 240);
+        --primary-foreground: oklch(1 0 0);
+        --secondary: oklch(0.85 0.15 90);
+        --secondary-foreground: oklch(0.25 0.02 270);
+        --muted: oklch(0.92 0.005 270);
+        --muted-foreground: oklch(0.45 0.02 270);
+        --accent: oklch(0.65 0.15 30);
+        --success: oklch(0.65 0.15 150);
+        --success-foreground: oklch(1 0 0);
+        --destructive: oklch(0.55 0.22 30);
+        --border: oklch(0.85 0.01 270);
+        --ring: oklch(0.65 0.15 240);
+        --radius: 1rem;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Quicksand", system-ui, sans-serif;
+        color: var(--foreground);
+        background: var(--background);
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 2rem 1rem 4rem;
+      }
+      h1,
+      h2,
+      h3 {
+        font-family: "Fredoka", "Quicksand", sans-serif;
+        font-weight: 600;
+      }
+      h1 {
+        font-size: clamp(1.6rem, 5vw, 2.4rem);
+        line-height: 1.25;
+        margin: 0 0 1rem;
+      }
+      #controls {
+        display: flex;
+        gap: 0.5rem;
+        margin: 1rem 0;
+        flex-wrap: wrap;
+      }
+      button {
+        font-family: "Quicksand", system-ui, sans-serif;
+        font-weight: 600;
+        font-size: 1rem;
+        padding: 0.55rem 1.1rem;
+        border-radius: calc(var(--radius) * 0.75);
+        border: 1px solid var(--border);
+        background: var(--card);
+        color: var(--foreground);
+        cursor: pointer;
+        transition: transform 0.1s ease, box-shadow 0.1s ease;
+      }
+      button:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 6px oklch(0.25 0.02 270 / 0.12);
+      }
+      button:active:not(:disabled) {
+        transform: translateY(0);
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      #recBtn {
+        background: var(--primary);
+        border-color: var(--primary);
+        color: var(--primary-foreground);
+      }
+      #nextBtn {
+        background: var(--secondary);
+        border-color: var(--secondary);
+      }
+      .chip {
+        font-family: "Fredoka", "Quicksand", sans-serif;
+        font-size: 1.3rem;
+        padding: 0.4rem 0.7rem;
+        border-radius: calc(var(--radius) * 0.75);
+        border: 1px solid var(--border);
+        margin: 2px;
+        background: var(--card);
+        cursor: pointer;
+      }
+      .chip-green {
+        background: var(--success);
+        border-color: var(--success);
+        color: var(--success-foreground);
+      }
+      .chip-amber {
+        background: var(--secondary);
+        border-color: var(--secondary);
+      }
+      .chip-red {
+        background: var(--destructive);
+        border-color: var(--destructive);
+        color: oklch(1 0 0);
+      }
+      #diagnosis {
+        margin: 0.75rem 0;
+        min-height: 1.5rem;
+        font-style: italic;
+        color: var(--muted-foreground);
+      }
+      .overall {
+        font-family: "Fredoka", "Quicksand", sans-serif;
+        font-size: 1.5rem;
+        font-weight: 600;
+      }
+      #scoreCard,
+      #progress {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 0.75rem 1rem;
+        margin: 0.75rem 0;
+      }
+      canvas {
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        display: block;
+        background: var(--card);
+        max-width: 100%;
+      }
+      .progress {
+        font-style: italic;
+        color: var(--muted-foreground);
+        margin: 0.5rem 0;
+        min-height: 1.2rem;
+      }
+      #modelBarWrap {
+        background: var(--muted);
+        border-radius: 6px;
+        height: 8px;
+        margin: 0.5rem 0;
+        overflow: hidden;
+      }
+      #modelBar {
+        background: var(--primary);
+        height: 100%;
+        width: 0;
+        transition: width 0.2s ease;
+      }
+      ul {
+        padding-left: 1.2rem;
+      }
+      pre {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 0.75rem 1rem;
+        overflow-x: auto;
+      }
     </style>
   </head>
   <body>
