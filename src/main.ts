@@ -306,7 +306,7 @@ async function main() {
       capture = null;
       try {
         // Backend pinned per model by the benchmark harness (issue #7).
-        const logits = await model.logitFrames(pcm, DEFAULT_BACKENDS["espeak-phoneme"] ?? "wasm");
+        const logits = await model.logitFrames(pcm, DEFAULT_BACKENDS["espeak-phoneme"] ?? "wasm", lang);
         const target = graphemesToPhonemes(pack, sentence);
         let result = scoreUtterance(logits, target, pack);
         // Prosody dimensions (issue #16) — pure DSP on the captured PCM,
