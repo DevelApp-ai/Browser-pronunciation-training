@@ -22,6 +22,7 @@ import { graphemesToPhonemes } from "./packs/schema.ts";
 import { loadSummary, pickExercise, recordAttempt } from "./progress/session.ts";
 import { openProgressStore } from "./progress/store.ts";
 import { withProsody } from "./prosody/merge.ts";
+import { detectStoed } from "./scoring/stoed.ts";
 import { scoreUtterance } from "./scoring/gop.ts";
 import { drawWaveform, playBlob, renderPhonemeRibbon, renderScoreCard } from "./ui/feedback.ts";
 import { playReference, referenceF0, type ReferenceHandle } from "./ui/reference.ts";
@@ -313,6 +314,12 @@ async function main() {
         // intonation scores against a flat template until #17 provides a
         // reference contour.
         result = withProsody(result, pcm, refF0);
+        // Danish stød (issue #12): rule-based creak detection over the
+        // whole utterance — v1 does not yet get nucleus positions from G2P.
+        if (lang === "da") {
+          const stoed = detectStoed(pcm, 16000, { from: 0, to: pcm.length });
+          result.dimensions.stoed = { present: stoed.present, score: stoed.score };
+        }
         if (evalMode) {
           evalRecords.push(toEvalRecord(result, lang, sentence, logits.latencyMs));
           if (evalBtn) evalBtn.disabled = evalRecords.length === 0;
