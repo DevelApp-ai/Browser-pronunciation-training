@@ -16,7 +16,8 @@ enough for usable GOP, or must a finetuned model be the launch artifact?*
 | Confusion inspection | per-phoneme error breakdown, aspirated/tap contrasts | ⏳ |
 | Decision gate | zero-shot PER usable for scripted read-aloud GOP → ship zero-shot at launch | ⏳ |
 
-Zero-shot evaluation recipe: manifest `data/new/nwacha-muna.jsonl`
+Zero-shot evaluation recipe: build the manifest with
+`python pipeline/build_manifest.py --lang new --source <nwacha-muna.csv|jsonl> --format ...`
 ({audio, phonemes}) → greedy decode with the baseline model →
 `pipeline/validate_model.py` error-rate functions (PER).
 
