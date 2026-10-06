@@ -34,3 +34,62 @@ artifacts:
 #    languages: [en]
 #    validation: { metric: per, max_regression: 0.01, dataset: data/en-heldout }
 #    publish: { target: hub, hub_repo: DevelApp-ai/en-phoneme-onnx }
+
+# Per-language finetunes (issues #11–#14). The finetune stage precedes
+# export: python pipeline/finetune_model.py <name> (GPU host, not CI).
+  en-phoneme:
+    task: automatic-speech-recognition
+    source_model: pipeline/build/en-phoneme/ckpt
+    quantizations: [q8, q4]
+    revision: v1-en
+    languages: [en]
+    finetune:
+      base_model: facebook/wav2vec2-lv-60-espeak-cv-ft   # per TDS English row
+      dataset: data/en/commonvoice-librispeech.jsonl
+      epochs: 10
+      batch_size: 16
+    validation: { metric: per, max_regression: 0.01, dataset: data/en-heldout.jsonl }
+    publish: { target: hub, hub_repo: DevelApp-ai/en-phoneme-onnx }
+  da-phoneme:
+    task: automatic-speech-recognition
+    source_model: pipeline/build/da-phoneme/ckpt
+    quantizations: [q8, q4]
+    revision: v1-da
+    languages: [da]
+    finetune:
+      base_model: facebook/wav2vec2-lv-60-espeak-cv-ft
+      dataset: data/da/commonvoice-readaloud.jsonl
+      epochs: 10
+      batch_size: 16
+    validation: { metric: per, max_regression: 0.01, dataset: data/da-heldout.jsonl }
+    publish: { target: hub, hub_repo: DevelApp-ai/da-phoneme-onnx }
+  ne-phoneme:
+    task: automatic-speech-recognition
+    source_model: pipeline/build/ne-phoneme/ckpt
+    quantizations: [q8, q4]
+    revision: v1-ne
+    languages: [ne]
+    finetune:
+      base_model: facebook/wav2vec2-lv-60-espeak-cv-ft
+      dataset: data/ne/commonvoice-fleurs-openslr.jsonl
+      epochs: 15
+      batch_size: 8
+      # TDS: augmentation is mandatory for Nepali, not optional
+      augmentation: { noise: 0.005, speed: [0.9, 1.1], specaugment: true }
+    validation: { metric: per, max_regression: 0.01, dataset: data/ne-heldout.jsonl }
+    publish: { target: hub, hub_repo: DevelApp-ai/ne-phoneme-onnx }
+  new-phoneme:
+    task: automatic-speech-recognition
+    source_model: pipeline/build/new-phoneme/ckpt
+    quantizations: [q8, q4]
+    revision: v1-new
+    languages: [new]
+    finetune:
+      # proximal transfer from the Nepali checkpoint (Nwāchā Munā, OQ2/OQ3)
+      base_model: pipeline/build/ne-phoneme/ckpt
+      dataset: data/new/nwacha-muna.jsonl
+      epochs: 10
+      batch_size: 8
+      augmentation: { noise: 0.005, speed: [0.9, 1.1], specaugment: true }
+    validation: { metric: per, max_regression: 0.02, dataset: data/new-heldout.jsonl }
+    publish: { target: hub, hub_repo: DevelApp-ai/new-phoneme-onnx }
