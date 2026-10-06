@@ -16,7 +16,7 @@ decoding work for RNN-T worth it versus a Conformer-CTC that exports cleanly?
 | --- | --- | --- |
 | Export to ONNX | Single encoder graph; Optimum/ESPnet-ONNX export paths are well-trodden | Two extra graphs (prediction network + joint network); stateful decode loop must be modelled in the graph or orchestrated from JS |
 | Operator coverage (WASM/WebGPU) | Conv + attention ops — same set as our wav2vec2-CTC baseline, already proven in transformers.js | Adds LSTM/GRU cells or extra matmuls per emitted token; loop-carried state is awkward for the ORT Web graph runner |
-| JS decode | `greedyCtcDecode` — already implemented in `src/scoring/gop.ts` (~30 lines, stateless) | Stateful greedy decode: per-frame encoder → prediction net over emitted tokens → joint → argmax; 100+ lines, per-token state, awkward to keep in sync with the worker protocol |
+| JS decode | `greedyCtcDecode` — already implemented in `src/scoring/gop.ts` (~30 lines, stateless) | Stateful greedy decode — now prototyped in `src/scoring/rnnt_decode.ts` (`greedyRnntDecode`, tested): the minimal loop already carries (frame, prefix) state, needs explicit T/U dimensions plus a `maxTokens` safety bound, and re-evaluates the joint after every emission; per-token state stays awkward to keep in sync with the worker protocol |
 | Posteriors for GOP | Per-frame phoneme posteriors **fall out of the forward pass** — exactly what alignment-free GOP needs | Transducer posteriors are conditioned on the decode prefix; per-frame phoneme probability is NOT directly available without extra work |
 | Streaming | No (offline CTC only) | Yes (native) — but our app is exercise-scoped, not streaming |
 | Size | Encoder only | Encoder + prediction + joint (~+10–20%) |
