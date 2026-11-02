@@ -30,7 +30,7 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -58,7 +58,7 @@ jobs:
           NODE_PATH: ${{ github.workspace }}/node_modules
 
       - name: Upload runtime report for #7's harness
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: runtime-report-${{ inputs.artifact }}-${{ inputs.dtype }}
           path: pipeline/build/${{ inputs.artifact }}/runtime_report.json

@@ -16,7 +16,7 @@ jobs:
       - run: npm test
       - run: npm run build
       # pipeline + eval analysis are pure Python — run their tests too (#10, #19)
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - run: pip install pytest pyyaml
