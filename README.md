@@ -70,3 +70,7 @@ npm install
 npm test     # vitest
 npm run dev  # vite dev server
 ```
+
+## License
+
+MIT — see [LICENSE](LICENSE).
